@@ -24,10 +24,7 @@ func getContents(logs []action.Action, user string) []*genai.Content {
 		var role string
 		var message string
 
-		if log.User == action.System {
-			role = "system"
-			message = "[Игровое Событие]: " + log.Message
-		} else if log.User == user {
+		if log.User == user {
 			role = "model"
 			message = log.Message
 		} else {

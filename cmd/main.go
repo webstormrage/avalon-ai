@@ -302,6 +302,7 @@ func handleGame(state *GameState) {
 		})
 		fmt.Println("[Система]:" + missionMessage)
 		state.SkipsCount = 0
+		state.MissionIndex++
 		state.LeaderIndex = (state.LeaderIndex + 1) % len(state.Players)
 	}
 	if state.SkipsCount == 5 {
