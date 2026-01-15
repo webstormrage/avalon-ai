@@ -11,6 +11,10 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"regexp"
+	"slices"
+	"strconv"
+	"strings"
 )
 
 type CharacterConfig struct {
@@ -83,11 +87,9 @@ type GameState struct {
 	Players      []*gemini.Character
 	MissionIndex int
 	LeaderIndex  int
-	RoundNumber  int
 	SkipsCount   int
 	Wins         int
 	Fails        int
-	WinnerTeam   string
 	Logs         []action.Action
 }
 
@@ -99,11 +101,95 @@ func wait() {
 	}
 }
 
+func extractVote(text string) bool {
+	re := regexp.MustCompile(`(?i)Голосовать:\s*(ЗА|ПРОТИВ)\s*$`)
+	m := re.FindStringSubmatch(text)
+
+	if len(m) < 2 {
+		return false
+	}
+
+	// нормализуем результат
+	switch strings.ToUpper(m[1]) {
+	case "ЗА":
+		return true
+	case "ПРОТИВ":
+		return false
+	default:
+		return false
+	}
+}
+
+func extractTeam(text string) ([]string, bool) {
+	re := regexp.MustCompile(`(?i)Выставить:\s*(.+)\s*$`)
+	m := re.FindStringSubmatch(text)
+
+	if len(m) < 2 {
+		return nil, false
+	}
+
+	raw := m[1]
+	parts := strings.Split(raw, ",")
+
+	var players []string
+	for _, p := range parts {
+		name := strings.TrimSpace(p)
+		if name != "" {
+			players = append(players, name)
+		}
+	}
+
+	if len(players) == 0 {
+		return nil, false
+	}
+
+	return players, true
+}
+
+func extractMissionResult(text string) bool {
+	re := regexp.MustCompile(`(?i)Совершить:\s*(УСПЕХ|ПРОВАЛ)\s*$`)
+	m := re.FindStringSubmatch(text)
+
+	if len(m) < 2 {
+		return true
+	}
+
+	switch strings.ToUpper(m[1]) {
+	case "УСПЕХ":
+		return true
+	case "ПРОВАЛ":
+		return false
+	default:
+		return true
+	}
+}
+
+func extractPlayerName(text string) (string, bool) {
+	re := regexp.MustCompile(`(?i)Выбрать:\s*(.+)\s*$`)
+	m := re.FindStringSubmatch(text)
+
+	if len(m) < 2 {
+		return "", false
+	}
+
+	name := strings.TrimSpace(m[1])
+	if name == "" {
+		return "", false
+	}
+
+	return name, true
+}
+
+func getResume(state *GameState) string {
+	return fmt.Sprintf("На данный момент провалено %d миссий,  выполненно - %d миссий. %d лидеров поряд не смогли собрать состав на миссию.\n",
+		state.Fails, state.Wins, state.SkipsCount)
+}
+
 func handleGame(state *GameState) {
 	for state.Wins < 3 && state.Fails < 3 && state.SkipsCount < 5 {
 		leader := state.Players[state.LeaderIndex]
-		message, err := leader.Send("Вы лидер. На данный момент провалено %d миссий,  выполненно - %d миссий. %d лидеров поряд не смогли собрать состав на миссию.\n"+
-			"Вы должны собрать состав на Миссию - %d, состав из %d любых игроков.\n"+
+		message, err := leader.Send("Вы лидер."+getResume(state)+
+			fmt.Sprintf("Вы должны предложить состав на Миссию - %d, состав из %d любых игроков.\n", state.MissionIndex+1, state.Missions[state.MissionIndex])+
 			"Последнее предложение речи должно быть в следующем формате: Выставить: имена игроков через запятую", state.Logs)
 		if err != nil {
 			panic(err)
@@ -115,8 +201,8 @@ func handleGame(state *GameState) {
 		for i := 1; i < len(state.Players); i++ {
 			player := state.Players[(state.LeaderIndex+i)%len(state.Players)]
 
-			message, err = player.Send(" На данный момент провалено %d миссий,  выполненно - %d миссий. %d лидеров поряд не смогли собрать состав на миссию.\n"+
-				"Лидер предложил состав на Миссию - %d"+
+			message, err = player.Send(getResume(state)+
+				fmt.Sprintf("Лидер предложил состав на Миссию - %d (участников: %d)\n", state.MissionIndex+1, state.Missions[state.MissionIndex])+
 				"Вы можете поддержать состав лидера, или любой другой озвученный ранее либо предложить альтернативный состав\n"+
 				"В любом случае последнее предложение речи должно быть в следующем формате: Поддерживаю: имена игроков через запятую", state.Logs)
 			if err != nil {
@@ -127,8 +213,8 @@ func handleGame(state *GameState) {
 			state.Logs = append(state.Logs, action.Action{User: player.Persona.Self, Message: message})
 		}
 
-		message, err = leader.Send("Вы лидер. На данный момент провалено %d миссий,  выполненно - %d миссий. %d лидеров поряд не смогли собрать состав на миссию.\n"+
-			"Вы должны выставить на голосование состав на Миссию - %d, состав из %d любых игроков.\n"+
+		message, err = leader.Send("Вы лидер. "+getResume(state)+
+			fmt.Sprintf("Вы должны выставить состав на голосование на Миссию - %d, состав из %d любых игроков.\n", state.MissionIndex+1, state.Missions[state.MissionIndex])+
 			"Последнее предложение речи должно быть в следующем формате: Выставить: имена игроков через запятую", state.Logs)
 		if err != nil {
 			panic(err)
@@ -136,24 +222,144 @@ func handleGame(state *GameState) {
 		fmt.Printf("[%s](%s): %s\n", leader.Persona.Self, leader.Persona.Role, message)
 		wait()
 		state.Logs = append(state.Logs, action.Action{User: leader.Persona.Self, Message: message})
+		leaderStatement, _ := extractTeam(message)
+		leaderTeam := []*gemini.Character{}
+		for _, l := range leaderStatement {
+			idx := slices.IndexFunc(state.Players, func(p *gemini.Character) bool {
+				return strings.ToLower(p.Persona.Self) == strings.ToLower(l)
+			})
+			leaderTeam = append(leaderTeam, state.Players[idx])
+		}
+		votesForLeader := 0
+		votesAgainstLeader := 0
 
 		for i := 1; i < len(state.Players); i++ {
 			player := state.Players[(state.LeaderIndex+i)%len(state.Players)]
 
-			message, err = player.Send(" На данный момент провалено %d миссий,  выполненно - %d миссий. %d лидеров поряд не смогли собрать состав на миссию.\n"+
-				"Лидер выставил состав на Миссию - %d для голосования"+
+			message, err = player.Send(getResume(state)+
+				fmt.Sprintf("Лидер выставил состав на Миссию - %d (число участников: %d)\n", state.MissionIndex+1, state.Missions[state.MissionIndex])+
 				"Вы можете проголосовать либо против, либо за.\n"+
-				"Последнее слово в вашей речи должно быть либо ПРОТИВ, либо ЗА", state.Logs)
+				"Последнее предложение в вашей речи должно быть либо Голосовать: ПРОТИВ, либо Голосовать: ЗА", state.Logs)
 			if err != nil {
 				panic(err)
 			}
 			fmt.Printf("[%s](%s): %s\n", player.Persona.Self, player.Persona.Role, message)
 			wait()
 			state.Logs = append(state.Logs, action.Action{User: player.Persona.Self, Message: message})
-			// TODO: подсчет голосов
+			if extractVote(message) {
+				votesForLeader++
+			} else {
+				votesAgainstLeader++
+			}
 		}
-		return // DEGUG return
-		//TODO: обработка конца раунда, поход на миссию, обработка скипа, переключение лидера
+		if votesForLeader < votesAgainstLeader {
+			state.SkipsCount++
+			state.LeaderIndex = (state.LeaderIndex + 1) % len(state.Players)
+			missionMessage := "Лидер " + leader.Persona.Self + "не смог собрать состав на Миссию " + strconv.Itoa(state.MissionIndex+1) + "\n"
+			fmt.Println("[Система]:" + missionMessage)
+			state.Logs = append(state.Logs, action.Action{User: action.System, Message: missionMessage})
+			continue
+		}
+
+		missionMessage := "Лидер " + leader.Persona.Self + "смог собрал состав на Миссию " + strconv.Itoa(state.MissionIndex+1) + "\n"
+		fmt.Println("[Система]:" + missionMessage)
+		state.Logs = append(state.Logs, action.Action{User: action.System, Message: missionMessage})
+
+		votesFail := 0
+		votesSuccess := 0
+
+		for _, player := range leaderTeam {
+			message, err = player.Send(getResume(state)+
+				fmt.Sprintf("Лидер выставил вас в состав на Миссию - %d (число участников: %d)\n", state.MissionIndex+1, state.Missions[state.MissionIndex])+
+				"Вы сейчас находитесь на Миссии. Вы можете либо успещно выполнить свою часть, либо провалить. Остальные игроки не узнают, что именно вы выбрали и не увидят вашу речь.\n"+
+				"Но они будут знать число провалов и успехов в этой миссии\n"+
+				"Для провала миссии достаточно 1 провала, а для успеха требуется, чтобы все участники миссии совершили успех\n"+
+				"Последнее предложение в вашей речи должно быть либо Совершить: УСПЕХ или Совершить: ПРОВАЛ", state.Logs)
+			if err != nil {
+				panic(err)
+			}
+			fmt.Printf("[%s](%s): %s\n", player.Persona.Self, player.Persona.Role, message)
+			wait()
+			if extractMissionResult(message) {
+				votesSuccess++
+			} else {
+				votesFail++
+			}
+		}
+		result := "Миссия выполнена"
+		if votesFail > 0 {
+			result = "Миссия провалена"
+			state.Fails++
+		} else {
+			state.Wins++
+		}
+		missionMessage = "Результат миссии: " + strconv.Itoa(state.MissionIndex+1) +
+			"\nУспехов: " + strconv.Itoa(votesSuccess) +
+			"\nПровалов: " + strconv.Itoa(votesFail) + "\n" + result + "\n"
+		state.Logs = append(state.Logs, action.Action{
+			User:    action.System,
+			Message: missionMessage,
+		})
+		fmt.Println("[Система]:" + missionMessage)
+		state.SkipsCount = 0
+		state.LeaderIndex = (state.LeaderIndex + 1) % len(state.Players)
+	}
+	if state.SkipsCount == 5 {
+		gameMessage := "Игра окончена. 5 лидеров подряд не смогли собрать состав на миссию. Победила команда 'Красные'"
+		state.Logs = append(state.Logs, action.Action{
+			User:    action.System,
+			Message: gameMessage,
+		})
+		fmt.Println("[Система]:" + gameMessage)
+		return
+	}
+	if state.Fails == 3 {
+		gameMessage := "Игра окончена. 3 миссии были провалены. Победила команда 'Красные'"
+		state.Logs = append(state.Logs, action.Action{
+			User:    action.System,
+			Message: gameMessage,
+		})
+		fmt.Println("[Система]:" + gameMessage)
+		return
+	}
+	if state.Wins == 3 {
+		idx := slices.IndexFunc(state.Players, func(p *gemini.Character) bool {
+			return p.Persona.Role == "Ассасин"
+		})
+		assassin := state.Players[idx]
+		message, err := assassin.Send(
+			"Команда 'Синие' близка к победе. Они выполнили успешно 3 миссии. Но у 'Красных есть шанс победить\n"+
+				"Назовите имя игрока за столом, который по вашему мнению имеет роль 'Мерлин'\n"+
+				"Если вы угадаете, то победа будет за 'Красными'\n"+
+				"Последнее предложение вашей речи должно быть Выбрать: имя игрока",
+			state.Logs,
+		)
+		if err != nil {
+			panic(err)
+		}
+		fmt.Printf("[%s](%s): %s\n", assassin.Persona.Self, assassin.Persona.Role, message)
+		wait()
+		state.Logs = append(state.Logs, action.Action{User: assassin.Persona.Self, Message: message})
+		targetName, _ := extractPlayerName(message)
+		idx = slices.IndexFunc(state.Players, func(p *gemini.Character) bool {
+			return strings.ToLower(targetName) == strings.ToLower(p.Persona.Self)
+		})
+		target := state.Players[idx]
+		if target.Persona.Role == "Мерлин" {
+			gameMessage := "Игра окончена. Ассассин убил Мерлина. Победила команда 'Красные'"
+			state.Logs = append(state.Logs, action.Action{
+				User:    action.System,
+				Message: gameMessage,
+			})
+			fmt.Println("[Система]:" + gameMessage)
+			return
+		}
+		gameMessage := "Игра окончена. Ассассин не нашел Мерлина. Победила команда 'Синие'"
+		state.Logs = append(state.Logs, action.Action{
+			User:    action.System,
+			Message: gameMessage,
+		})
+		fmt.Println("[Система]:" + gameMessage)
 	}
 }
 
@@ -165,11 +371,9 @@ func main() {
 		Players:      players,
 		MissionIndex: 0,
 		LeaderIndex:  rand.Intn(len(players)),
-		RoundNumber:  0,
 		SkipsCount:   0,
 		Wins:         0,
 		Fails:        0,
-		WinnerTeam:   "",
 		Logs:         []action.Action{},
 	}
 	handleGame(state)
