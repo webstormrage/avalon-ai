@@ -2,6 +2,7 @@ package prompts
 
 import (
 	"bytes"
+	"regexp"
 	"strings"
 	"text/template"
 )
@@ -21,6 +22,32 @@ const statementPromptTpl = `
 Последнее предложение речи должно быть в следующем формате:
 Выставить: имена игроков через запятую
 `
+
+func ExtractTeam(text string) ([]string, bool) {
+	re := regexp.MustCompile(`(?i)Выставить:\s*(.+)\s*$`)
+	m := re.FindStringSubmatch(text)
+
+	if len(m) < 2 {
+		return nil, false
+	}
+
+	raw := m[1]
+	parts := strings.Split(raw, ",")
+
+	var players []string
+	for _, p := range parts {
+		name := strings.TrimSpace(p)
+		if name != "" {
+			players = append(players, name)
+		}
+	}
+
+	if len(players) == 0 {
+		return nil, false
+	}
+
+	return players, true
+}
 
 func RenderStatementPrompt(view StatementProps) string {
 	tpl := template.Must(

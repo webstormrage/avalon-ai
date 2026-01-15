@@ -2,6 +2,7 @@ package prompts
 
 import (
 	"bytes"
+	"regexp"
 	"strings"
 	"text/template"
 )
@@ -17,6 +18,24 @@ const completionPromptTpl = `
 
 Последнее предложение в вашей речи должно быть либо Совершить: УСПЕХ или Совершить: ПРОВАЛ
 `
+
+func ExtractMissionResult(text string) bool {
+	re := regexp.MustCompile(`(?i)Совершить:\s*(УСПЕХ|ПРОВАЛ)\s*$`)
+	m := re.FindStringSubmatch(text)
+
+	if len(m) < 2 {
+		return true
+	}
+
+	switch strings.ToUpper(m[1]) {
+	case "УСПЕХ":
+		return true
+	case "ПРОВАЛ":
+		return false
+	default:
+		return true
+	}
+}
 
 func RenderCompletionPrompt(view VoteProps) string {
 	tpl := template.Must(

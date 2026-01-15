@@ -13,7 +13,6 @@ import (
 	"log"
 	"math/rand"
 	"os"
-	"regexp"
 	"slices"
 	"strings"
 )
@@ -90,87 +89,8 @@ func wait() {
 	}
 }
 
-func extractVote(text string) bool {
-	re := regexp.MustCompile(`(?i)Голосовать:\s*(ЗА|ПРОТИВ)\s*$`)
-	m := re.FindStringSubmatch(text)
-
-	if len(m) < 2 {
-		return false
-	}
-
-	// нормализуем результат
-	switch strings.ToUpper(m[1]) {
-	case "ЗА":
-		return true
-	case "ПРОТИВ":
-		return false
-	default:
-		return false
-	}
-}
-
-func extractTeam(text string) ([]string, bool) {
-	re := regexp.MustCompile(`(?i)Выставить:\s*(.+)\s*$`)
-	m := re.FindStringSubmatch(text)
-
-	if len(m) < 2 {
-		return nil, false
-	}
-
-	raw := m[1]
-	parts := strings.Split(raw, ",")
-
-	var players []string
-	for _, p := range parts {
-		name := strings.TrimSpace(p)
-		if name != "" {
-			players = append(players, name)
-		}
-	}
-
-	if len(players) == 0 {
-		return nil, false
-	}
-
-	return players, true
-}
-
-func extractMissionResult(text string) bool {
-	re := regexp.MustCompile(`(?i)Совершить:\s*(УСПЕХ|ПРОВАЛ)\s*$`)
-	m := re.FindStringSubmatch(text)
-
-	if len(m) < 2 {
-		return true
-	}
-
-	switch strings.ToUpper(m[1]) {
-	case "УСПЕХ":
-		return true
-	case "ПРОВАЛ":
-		return false
-	default:
-		return true
-	}
-}
-
-func extractPlayerName(text string) (string, bool) {
-	re := regexp.MustCompile(`(?i)Выбрать:\s*(.+)\s*$`)
-	m := re.FindStringSubmatch(text)
-
-	if len(m) < 2 {
-		return "", false
-	}
-
-	name := strings.TrimSpace(m[1])
-	if name == "" {
-		return "", false
-	}
-
-	return name, true
-}
-
 func messageToTeam(message string, players []*gemini.Character) []*gemini.Character {
-	leaderStatement, _ := extractTeam(message)
+	leaderStatement, _ := prompts.ExtractTeam(message)
 	leaderTeam := []*gemini.Character{}
 	for _, l := range leaderStatement {
 		idx := slices.IndexFunc(players, func(p *gemini.Character) bool {
@@ -288,7 +208,7 @@ func runGame(state *GameState) {
 			}
 			consoleLog(player, message)
 			wait()
-			if extractVote(message) {
+			if prompts.ExtractVote(message) {
 				votesForLeader++
 				votes[player.Persona.Self] = "ЗА"
 			} else {
@@ -338,7 +258,7 @@ func runGame(state *GameState) {
 			}
 			consoleLog(player, message)
 			wait()
-			if extractMissionResult(message) {
+			if prompts.ExtractMissionResult(message) {
 				votesSuccess++
 			} else {
 				votesFail++
@@ -391,7 +311,7 @@ func runGame(state *GameState) {
 		consoleLog(assassin, message)
 		wait()
 		registerAction(state, assassin, message)
-		targetName, _ := extractPlayerName(message)
+		targetName, _ := prompts.ExtractPlayerName(message)
 		idx = slices.IndexFunc(state.Players, func(p *gemini.Character) bool {
 			return strings.ToLower(targetName) == strings.ToLower(p.Persona.Self)
 		})

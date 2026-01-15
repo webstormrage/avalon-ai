@@ -2,6 +2,7 @@ package prompts
 
 import (
 	"bytes"
+	"regexp"
 	"strings"
 	"text/template"
 )
@@ -24,6 +25,25 @@ const votePromptTpl = `
 
 Последнее предложение в вашей речи должно быть либо Голосовать: ПРОТИВ, либо Голосовать: ЗА
 `
+
+func ExtractVote(text string) bool {
+	re := regexp.MustCompile(`(?i)Голосовать:\s*(ЗА|ПРОТИВ)\s*$`)
+	m := re.FindStringSubmatch(text)
+
+	if len(m) < 2 {
+		return false
+	}
+
+	// нормализуем результат
+	switch strings.ToUpper(m[1]) {
+	case "ЗА":
+		return true
+	case "ПРОТИВ":
+		return false
+	default:
+		return false
+	}
+}
 
 func RenderVotePrompt(view VoteProps) string {
 	tpl := template.Must(
