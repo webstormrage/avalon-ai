@@ -76,7 +76,7 @@ func RenderStatementPrompt(view StatementProps) string {
 	)
 
 	var buf bytes.Buffer
-	if err := tpl.ExecuteTemplate(&buf, "leader", view); err != nil {
+	if err := tpl.ExecuteTemplate(&buf, "statementPrompt", view); err != nil {
 		panic(err)
 	}
 
