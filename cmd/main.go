@@ -15,7 +15,6 @@ import (
 	"os"
 	"regexp"
 	"slices"
-	"strconv"
 	"strings"
 )
 
@@ -170,11 +169,6 @@ func extractPlayerName(text string) (string, bool) {
 	return name, true
 }
 
-func getResume(state *GameState) string {
-	return fmt.Sprintf("На данный момент провалено %d миссий,  выполненно - %d миссий. %d лидеров поряд не смогли собрать состав на миссию.\n",
-		state.Fails, state.Wins, state.SkipsCount)
-}
-
 func messageToTeam(message string, players []*gemini.Character) []*gemini.Character {
 	leaderStatement, _ := extractTeam(message)
 	leaderTeam := []*gemini.Character{}
@@ -193,6 +187,14 @@ func playersToString(players []*gemini.Character) string {
 		names = append(names, player.Persona.Self)
 	}
 	return strings.Join(names, ", ")
+}
+
+func votesToString(leader string, team string, votes map[string]string) string {
+	items := []string{}
+	for k, v := range votes {
+		items = append(items, fmt.Sprintf("%s: %s", k, v))
+	}
+	return fmt.Sprintf("Результаты голосования (Лидер: %s, Команда: %s):\n %s\n", leader, team, strings.Join(items, "\n"))
 }
 
 func consoleLog(player *gemini.Character, message string) {
@@ -269,6 +271,7 @@ func runGame(state *GameState) {
 		leaderTeam := messageToTeam(message, state.Players)
 		votesForLeader := 0
 		votesAgainstLeader := 0
+		votes := map[string]string{}
 
 		for i := 1; i < len(state.Players); i++ {
 			player := state.Players[(state.LeaderIndex+i)%len(state.Players)]
@@ -285,26 +288,36 @@ func runGame(state *GameState) {
 			}
 			consoleLog(player, message)
 			wait()
-			registerAction(state, player, message)
 			if extractVote(message) {
 				votesForLeader++
+				votes[player.Persona.Self] = "ЗА"
 			} else {
 				votesAgainstLeader++
+				votes[player.Persona.Self] = "ПРОТИВ"
 			}
 		}
+		votingMessage := votesToString(leader.Persona.Self, playersToString(leaderTeam), votes)
+		systemLog(votingMessage)
+		registerSystemAction(state, votingMessage)
+
 		if votesForLeader < votesAgainstLeader {
 			state.SkipsCount++
 			state.LeaderIndex = (state.LeaderIndex + 1) % len(state.Players)
-			missionMessage := "Лидер " + leader.Persona.Self + "не смог собрать состав на Миссию " + strconv.Itoa(state.MissionIndex+1) + "\n"
-			fmt.Println("[Система]:" + missionMessage)
-			state.Logs = append(state.Logs, action.Action{User: action.System, Message: missionMessage})
+			missionMessage := fmt.Sprintf(
+				"Лидер %s не смог собрать состав на Миссию %d\n",
+				leader.Persona.Self,
+				state.MissionIndex+1,
+			)
+			systemLog(missionMessage)
+			registerSystemAction(state, missionMessage)
 			continue
 		}
 
 		missionMessage := fmt.Sprintf(
-			"Лидер %s не смог собрать состав на Миссию %d\n",
+			"Лидер %s смог собрать состав на Миссию %d - %s\n",
 			leader.Persona.Self,
 			state.MissionIndex+1,
+			playersToString(leaderTeam),
 		)
 		systemLog(missionMessage)
 		registerSystemAction(state, missionMessage)
