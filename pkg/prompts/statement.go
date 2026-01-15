@@ -1,8 +1,10 @@
 package prompts
 
 import (
+	"avalon/pkg/gemini"
 	"bytes"
 	"regexp"
+	"slices"
 	"strings"
 	"text/template"
 )
@@ -47,6 +49,18 @@ func ExtractTeam(text string) ([]string, bool) {
 	}
 
 	return players, true
+}
+
+func ExtractCharacters(message string, players []*gemini.Character) []*gemini.Character {
+	leaderStatement, _ := ExtractTeam(message)
+	leaderTeam := []*gemini.Character{}
+	for _, l := range leaderStatement {
+		idx := slices.IndexFunc(players, func(p *gemini.Character) bool {
+			return strings.ToLower(p.Persona.Self) == strings.ToLower(l)
+		})
+		leaderTeam = append(leaderTeam, players[idx])
+	}
+	return leaderTeam
 }
 
 func RenderStatementPrompt(view StatementProps) string {
