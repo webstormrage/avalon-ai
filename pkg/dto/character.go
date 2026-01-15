@@ -1,17 +1,13 @@
-package gemini
-
-import (
-	"avalon/pkg/action"
-)
+package dto
 
 type Character struct {
-	agent        *Agent
+	agent        Agent
 	Persona      Persona
 	systemPrompt string
 }
 
 func NewCharacter(
-	agent *Agent,
+	agent Agent,
 	persona Persona,
 	systemPrompt string,
 ) *Character {
@@ -25,7 +21,7 @@ func NewCharacter(
 
 func (c *Character) Send(
 	instruction string,
-	logs []action.Action,
+	logs []Action,
 ) (string, error) {
 	return c.agent.Send(c.Persona, c.systemPrompt, instruction, logs)
 }

@@ -1,4 +1,4 @@
-package action
+package dto
 
 var System = "System"
 

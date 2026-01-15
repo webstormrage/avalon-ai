@@ -2,6 +2,7 @@ package domain
 
 import (
 	"avalon/pkg/constants"
+	"avalon/pkg/dto"
 	"avalon/pkg/gemini"
 	"avalon/pkg/presets"
 	"avalon/pkg/prompts"
@@ -17,7 +18,7 @@ func extractPlayers(chars []presets.CharacterConfig) []string {
 	return players
 }
 
-func GenerateActors(ctx context.Context, apiKey string, roles []presets.Role, missions []int) []*gemini.Character {
+func GenerateActors(ctx context.Context, apiKey string, roles []presets.Role, missions []int) []*dto.Character {
 	agent, err := gemini.NewAgent(ctx, apiKey)
 	if err != nil {
 		log.Fatal(err)
@@ -27,7 +28,7 @@ func GenerateActors(ctx context.Context, apiKey string, roles []presets.Role, mi
 	rolesOrder := presets.GenRolesOrder(presets.Roles5)
 	players := extractPlayers(characters)
 
-	actors := make([]*gemini.Character, 0, len(characters))
+	actors := make([]*dto.Character, 0, len(characters))
 
 	redPlayers := "Вам известно что следующие игроки принадлежат команде 'Красные':"
 	for i, cfg := range characters {
@@ -41,9 +42,9 @@ func GenerateActors(ctx context.Context, apiKey string, roles []presets.Role, mi
 		if rolesOrder[i] == constants.ROLE_MERLIN || rolesOrder[i] == constants.ROLE_MORDRED_MINION || rolesOrder[i] == constants.ROLE_ASSASSIN {
 			roleContext = redPlayers
 		}
-		actor := gemini.NewCharacter(
+		actor := dto.NewCharacter(
 			agent,
-			gemini.Persona{
+			dto.Persona{
 				Self:      cfg.Name,
 				ModelName: "models/gemini-2.5-flash",
 				Role:      rolesOrder[i],

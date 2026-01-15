@@ -1,7 +1,7 @@
 package gemini
 
 import (
-	"avalon/pkg/action"
+	"avalon/pkg/dto"
 	"context"
 	"fmt"
 	"github.com/google/generative-ai-go/genai"
@@ -17,7 +17,7 @@ func i32(v int32) *int32 {
 	return &v
 }
 
-func getContents(logs []action.Action, user string) []*genai.Content {
+func getContents(logs []dto.Action, user string) []*genai.Content {
 	var contents []*genai.Content
 
 	for _, log := range logs {
@@ -43,21 +43,15 @@ func getContents(logs []action.Action, user string) []*genai.Content {
 	return contents
 }
 
-type Agent struct {
+type GeminiAgent struct {
 	client *genai.Client
 	ctx    context.Context
-}
-
-type Persona struct {
-	Self      string // имя в логах
-	ModelName string // gemini-1.5-pro, gemini-1.5-flash и т.д.
-	Role      string
 }
 
 func NewAgent(
 	ctx context.Context,
 	apiKey string,
-) (*Agent, error) {
+) (dto.Agent, error) {
 
 	client, err := genai.NewClient(
 		ctx,
@@ -67,21 +61,21 @@ func NewAgent(
 		return nil, err
 	}
 
-	return &Agent{
+	return &GeminiAgent{
 		ctx:    ctx,
 		client: client,
 	}, nil
 }
 
-func (a *Agent) Close() error {
+func (a *GeminiAgent) Close() error {
 	return a.client.Close()
 }
 
-func (a *Agent) Send(
-	persona Persona,
+func (a *GeminiAgent) Send(
+	persona dto.Persona,
 	systemPrompt string,
 	instruction string,
-	logs []action.Action,
+	logs []dto.Action,
 ) (string, error) {
 
 	model := a.client.GenerativeModel(persona.ModelName)

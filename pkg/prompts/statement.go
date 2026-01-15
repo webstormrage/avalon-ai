@@ -1,7 +1,7 @@
 package prompts
 
 import (
-	"avalon/pkg/gemini"
+	"avalon/pkg/dto"
 	"bytes"
 	"regexp"
 	"slices"
@@ -51,11 +51,11 @@ func ExtractTeam(text string) ([]string, bool) {
 	return players, true
 }
 
-func ExtractCharacters(message string, players []*gemini.Character) []*gemini.Character {
+func ExtractCharacters(message string, players []*dto.Character) []*dto.Character {
 	leaderStatement, _ := ExtractTeam(message)
-	leaderTeam := []*gemini.Character{}
+	leaderTeam := []*dto.Character{}
 	for _, l := range leaderStatement {
-		idx := slices.IndexFunc(players, func(p *gemini.Character) bool {
+		idx := slices.IndexFunc(players, func(p *dto.Character) bool {
 			return strings.ToLower(p.Persona.Self) == strings.ToLower(l)
 		})
 		leaderTeam = append(leaderTeam, players[idx])

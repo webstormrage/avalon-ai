@@ -1,12 +1,12 @@
-package domain
+package logging
 
 import (
-	"avalon/pkg/gemini"
+	"avalon/pkg/dto"
 	"fmt"
 	"strings"
 )
 
-func FmtPlayers(players []*gemini.Character) string {
+func FmtPlayers(players []*dto.Character) string {
 	names := []string{}
 	for _, player := range players {
 		names = append(names, player.Persona.Self)
