@@ -1,6 +1,7 @@
 package prompts
 
 import (
+	"avalon/pkg/dto"
 	"bytes"
 	"regexp"
 	"strings"
@@ -8,7 +9,7 @@ import (
 )
 
 type VoteProps struct {
-	Mission MissionProps
+	Mission dto.MissionV2
 	Team    string
 	Leader  string
 }

@@ -97,6 +97,7 @@ func GetGame(
             id,
             mission_priority,
             leader_position,
+            speaker_position,
             skips_count,
             wins,
             fails,
@@ -106,6 +107,7 @@ func GetGame(
     `, gameID).Scan(
 		&game.ID,
 		&game.MissionPriority,
+		&game.SpeakerPosition,
 		&game.LeaderPosition,
 		&game.SkipsCount,
 		&game.Wins,

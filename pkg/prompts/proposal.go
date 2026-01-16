@@ -10,8 +10,9 @@ const proposalPromptTpl = `
 Вы лидер.
 {{template "resumePrompt" .Resume}}
 
-Вы должны предложить состав на {{.Mission.Name},
-состав из {{.Mission.SquadSize}} любых игроков.
+Вы должны предложить состав на {{.Mission.Name}},
+состав из {{.Mission.SquadSize}} любых игроков,
+допустимое количество провалов {{.Mission.MaxFails}}
 
 Вашу речь услышат другие игроки, учитывайте что ваши цели могут не совпадать.
 
@@ -20,12 +21,11 @@ const proposalPromptTpl = `
 `
 
 func RenderProposalPrompt(view StatementProps) string {
-	tpl := template.Must(
-		template.New("proposalPrompt").Parse(`
+	tpl, err := template.New("proposalPrompt").Parse(`
 {{define "resumePrompt"}}` + resumePromptTpl + `{{end}}
 {{define "proposalPrompt"}}` + proposalPromptTpl + `{{end}}
-`),
-	)
+`)
+	tpl = template.Must(tpl, err)
 
 	var buf bytes.Buffer
 	if err := tpl.ExecuteTemplate(&buf, "proposalPrompt", view); err != nil {
