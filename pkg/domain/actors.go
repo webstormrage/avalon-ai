@@ -49,8 +49,8 @@ func GenerateActors(ctx context.Context, apiKey string, roles []presets.Role, mi
 				ModelName: "models/gemini-2.5-flash",
 				Role:      rolesOrder[i],
 			},
-			prompts.GetSystemPrompt(prompts.Props{
-				Self:        cfg.Name,
+			prompts.GetSystemPrompt(prompts.SystemPromptProps{
+				Name:        cfg.Name,
 				Mood:        cfg.Mood,
 				Risk:        cfg.Risk,
 				Players:     players,

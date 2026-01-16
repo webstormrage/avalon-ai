@@ -1,22 +1,23 @@
 package prompts
 
 import (
+	"avalon/pkg/dto"
 	"avalon/pkg/presets"
 	"bytes"
+	"fmt"
 	"strconv"
 	"strings"
 	"text/template"
 )
 
-type Props struct {
-	Self        string
+type SystemPromptProps struct {
+	Name        string
 	Mood        string
-	Risk        string
 	Players     []string
 	Roles       []presets.Role
 	Role        string
 	RoleContext string
-	Missions    []int
+	Missions    []dto.MissionV2
 }
 
 func formatRoles(roles []presets.Role) string {
@@ -27,10 +28,10 @@ func formatRoles(roles []presets.Role) string {
 	return rolesP
 }
 
-func formatMissions(missions []int) string {
+func formatMissions(missions []dto.MissionV2) string {
 	missionsP := ""
-	for index, count := range missions {
-		missionsP = missionsP + "\n" + "Миссия " + strconv.Itoa(index+1) + ": численность отряда " + strconv.Itoa(count)
+	for _, mission := range missions {
+		missionsP += fmt.Sprintf("%s: численность отряда %d, допустимое число провалов: %d\n", mission.Name, mission.SquadSize, mission.MaxFails)
 	}
 	return missionsP
 }
@@ -39,9 +40,8 @@ const systemPromptTpl = `
 Вы играете в настольную игру Авалон Resistance
 В игре {{len .Players}} игроков за круглым столом
 Вот их имена в порядке обхода стола: {{join .Players ", "}}
-Вы отыгрываете персонажа - {{.Self}}
-Ваша манера речи - {{.Mood}}
-Ваша любовь к риску - {{.Risk}}
+Вы отыгрываете персонажа - {{.Name}}
+Характер вашего персонажа - {{.Mood}}
 Каждый из игроков имеет 1 из ролей {{formatRoles .Roles}}
 Ваша роль - {{.Role}}
 {{.RoleContext}}
@@ -55,7 +55,7 @@ const systemPromptTpl = `
 А игроки голосуют одновременно в открытую ЗА или ПРОТИВ они такого состава.
 Если голосов ПРОТИВ больше, то лидерство передается следующему игроку по порядку и цикл повторяется снова.
 Иначе состав утверждается на миссию и каждый игрок из состава голосует УСПЕХ или ПРОВАЛ в закрытую, общее число УСПЕХОВ и ПРОВАЛОВ оглашается всем игрокам.
-Миссия считается проваленной, если есть хотя бы 1 ПРОВАЛ (если иначе не описано в миссии), иначе она успешна.
+В описании каждой миссии указано допустимое максимальное число провалов, чтобы она считалась успешной.
 Успешная или проваленная миссия считается посещенной и больше на нее нельзя собирать состав.
 После посещения миссии, лидерство передается следующему игроку по порядку.
 Если 5 лидеров подряд не смогли собрать состав, то игра заканчивается победой команды 'Красные' и поражением команды 'Синие'.
@@ -66,7 +66,7 @@ const systemPromptTpl = `
 Учитывайте что не все игроки обладают одинаковой осведомленностью о ролях других игроков, а также то что ваши цели не всегда совпадают.
 `
 
-func GetSystemPrompt(props Props) string {
+func GetSystemPrompt(props SystemPromptProps) string {
 	tpl := template.Must(
 		template.New("systemPrompt").
 			Funcs(template.FuncMap{
