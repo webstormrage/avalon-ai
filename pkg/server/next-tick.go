@@ -69,6 +69,7 @@ func createDiscussionPrompt(ctx context.Context, db *sql.DB, game *dto.GameV2) e
 			}),
 		})
 	}
+	return err
 }
 
 func stateMachine(ctx context.Context, db *sql.DB, game *dto.GameV2, prompts []dto.Prompt) error {
@@ -81,11 +82,11 @@ func stateMachine(ctx context.Context, db *sql.DB, game *dto.GameV2, prompts []d
 			} else {
 				switch prompts[0].Status {
 				case constants.STATUS_NOT_STARTED:
-					sendDiscussionPrompt(game, prompts[0])
+					// sendDiscussionPrompt(game, prompts[0])
 				case constants.STATUS_HAS_RESPONSE:
-					approveDiscussionPrompt(game, prompts[0])
+					// approveDiscussionPrompt(game, prompts[0])
 				case constants.STATUS_APPROVED:
-					applyDiscussionPrompt(game, prompts[0])
+					// applyDiscussionPrompt(game, prompts[0])
 				}
 			}
 		}
