@@ -9,7 +9,7 @@ import (
 
 func CreatePrompt(
 	ctx context.Context,
-	db *sql.DB,
+	db QueryRower,
 	prompt *dto.Prompt,
 ) error {
 
@@ -38,7 +38,7 @@ func CreatePrompt(
 
 func GetPromptsNotCompletedByGameID(
 	ctx context.Context,
-	db *sql.DB,
+	db QueryRower,
 	gameID int,
 ) ([]dto.Prompt, error) {
 
@@ -88,7 +88,7 @@ func GetPromptsNotCompletedByGameID(
 
 func UpdatePrompt(
 	ctx context.Context,
-	db *sql.DB,
+	db QueryRower,
 	prompt *dto.Prompt,
 ) error {
 

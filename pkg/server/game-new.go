@@ -13,7 +13,9 @@ import (
 )
 
 type GameHandler struct {
-	DB *sql.DB
+	DB    *sql.DB
+	Agent dto.Agent
+	Ctx   context.Context
 }
 
 func (h *GameHandler) CreateGame(w http.ResponseWriter, r *http.Request) {
@@ -21,10 +23,7 @@ func (h *GameHandler) CreateGame(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
-
-	//ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-	//defer cancel()
-	ctx := context.Background()
+	ctx := h.Ctx
 
 	missions := presets.GetMissionsV2()
 

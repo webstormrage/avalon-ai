@@ -1,6 +1,7 @@
 package main
 
 import (
+	"avalon/pkg/gemini"
 	"avalon/pkg/server"
 	"avalon/pkg/store"
 	"context"
@@ -25,6 +26,7 @@ import (
 func main() {
 	_ = godotenv.Load()
 	dsn := os.Getenv("DATA_SOURCE_NAME")
+	apiKey := os.Getenv("GEMINI_API_KEY")
 	if dsn == "" {
 		log.Fatal("DATABASE_URL is not set")
 	}
@@ -35,14 +37,17 @@ func main() {
 	}
 	defer db.Close()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	ctx := context.Background()
+	agent, err := gemini.NewAgent(ctx, apiKey)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	if err := store.RunInitMigration(ctx, db); err != nil {
 		log.Fatal(err)
 	}
 
-	handler := &server.GameHandler{DB: db}
+	handler := &server.GameHandler{DB: db, Agent: agent, Ctx: ctx}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/games/new", handler.CreateGame)

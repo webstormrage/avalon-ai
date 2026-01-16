@@ -9,7 +9,7 @@ import (
 
 func CreateMission(
 	ctx context.Context,
-	tx *sql.Tx,
+	tx QueryRower,
 	mission *dto.MissionV2,
 ) error {
 
@@ -34,7 +34,7 @@ func CreateMission(
 
 func GetMissionByPriority(
 	ctx context.Context,
-	db *sql.DB,
+	db QueryRower,
 	gameID int,
 	priority int,
 ) (*dto.MissionV2, error) {
@@ -73,7 +73,7 @@ func GetMissionByPriority(
 
 func GetMissionsByGameID(
 	ctx context.Context,
-	db *sql.DB,
+	db QueryRower,
 	gameID int,
 ) ([]dto.MissionV2, error) {
 

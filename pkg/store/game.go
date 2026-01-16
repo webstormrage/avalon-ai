@@ -7,9 +7,15 @@ import (
 	"fmt"
 )
 
+type QueryRower interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+	QueryRowContext(ctx context.Context, query string, args ...any) *sql.Row
+}
+
 func CreateGame(
 	ctx context.Context,
-	tx *sql.Tx,
+	tx QueryRower,
 	game *dto.GameV2,
 ) error {
 
@@ -86,7 +92,7 @@ func CreateGameTransaction(
 
 func GetGame(
 	ctx context.Context,
-	db *sql.DB,
+	db QueryRower,
 	gameID int,
 ) (*dto.GameV2, error) {
 

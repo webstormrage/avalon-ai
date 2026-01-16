@@ -8,7 +8,7 @@ import (
 
 func CreatePlayer(
 	ctx context.Context,
-	tx *sql.Tx,
+	tx QueryRower,
 	p *dto.PlayerV2,
 ) error {
 
@@ -31,7 +31,7 @@ func CreatePlayer(
 
 func GetPlayerByPosition(
 	ctx context.Context,
-	db *sql.DB,
+	db QueryRower,
 	gameID int,
 	position int,
 ) (*dto.PlayerV2, error) {
@@ -74,7 +74,7 @@ func GetPlayerByPosition(
 
 func FindPlayersByNameLike(
 	ctx context.Context,
-	db *sql.DB,
+	db QueryRower,
 	gameID int,
 	namePart string,
 ) ([]dto.PlayerV2, error) {
@@ -123,7 +123,7 @@ func FindPlayersByNameLike(
 
 func GetPlayersByRole(
 	ctx context.Context,
-	db *sql.DB,
+	db QueryRower,
 	gameID int,
 	role string,
 ) ([]dto.PlayerV2, error) {
@@ -176,7 +176,7 @@ func GetPlayersByRole(
 
 func CountPlayersByGameID(
 	ctx context.Context,
-	db *sql.DB,
+	db QueryRower,
 	gameID int,
 ) (int, error) {
 
@@ -197,7 +197,7 @@ func CountPlayersByGameID(
 
 func GetPlayersByGameID(
 	ctx context.Context,
-	db *sql.DB,
+	db QueryRower,
 	gameID int,
 ) ([]dto.PlayerV2, error) {
 
