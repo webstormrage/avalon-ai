@@ -46,6 +46,7 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/games/new", handler.CreateGame)
+	mux.HandleFunc("/games/next-tick", handler.NextTick)
 
 	server := &http.Server{
 		Addr:    ":8080",

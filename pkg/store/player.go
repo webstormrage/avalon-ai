@@ -194,3 +194,54 @@ func CountPlayersByGameID(
 
 	return count, nil
 }
+
+func GetPlayersByGameID(
+	ctx context.Context,
+	db *sql.DB,
+	gameID int,
+) ([]dto.PlayerV2, error) {
+
+	rows, err := db.QueryContext(ctx, `
+        SELECT
+            id,
+            name,
+            model,
+            role,
+            voice,
+            mood,
+            position,
+            game_id
+        FROM players
+        WHERE game_id = $1
+        ORDER BY position ASC
+    `, gameID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	players := make([]dto.PlayerV2, 0)
+
+	for rows.Next() {
+		var p dto.PlayerV2
+		if err := rows.Scan(
+			&p.ID,
+			&p.Name,
+			&p.Model,
+			&p.Role,
+			&p.Voice,
+			&p.Mood,
+			&p.Position,
+			&p.GameID,
+		); err != nil {
+			return nil, err
+		}
+		players = append(players, p)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return players, nil
+}

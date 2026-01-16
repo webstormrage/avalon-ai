@@ -6,17 +6,12 @@ import (
 	"text/template"
 )
 
-type MissionProps struct {
-	Index int // текущий индекс миссии (0-based)
-	Size  int // размер команды
-}
-
 const proposalPromptTpl = `
 Вы лидер.
 {{template "resumePrompt" .Resume}}
 
-Вы должны предложить состав на Миссию — {{add .Mission.Index 1}},
-состав из {{.Mission.Size}} любых игроков.
+Вы должны предложить состав на {{.Mission.Name},
+состав из {{.Mission.SquadSize}} любых игроков.
 
 Вашу речь услышат другие игроки, учитывайте что ваши цели могут не совпадать.
 
@@ -26,11 +21,7 @@ const proposalPromptTpl = `
 
 func RenderProposalPrompt(view StatementProps) string {
 	tpl := template.Must(
-		template.New("proposalPrompt").
-			Funcs(template.FuncMap{
-				"add": func(a, b int) int { return a + b },
-			}).
-			Parse(`
+		template.New("proposalPrompt").Parse(`
 {{define "resumePrompt"}}` + resumePromptTpl + `{{end}}
 {{define "proposalPrompt"}}` + proposalPromptTpl + `{{end}}
 `),

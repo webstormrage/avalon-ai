@@ -70,3 +70,50 @@ func GetMissionByPriority(
 
 	return &m, nil
 }
+
+func GetMissionsByGameID(
+	ctx context.Context,
+	db *sql.DB,
+	gameID int,
+) ([]dto.MissionV2, error) {
+
+	rows, err := db.QueryContext(ctx, `
+        SELECT
+            id,
+            name,
+            max_fails,
+            priority,
+            squad_size,
+            game_id
+        FROM missions
+        WHERE game_id = $1
+        ORDER BY priority ASC
+    `, gameID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	missions := make([]dto.MissionV2, 0)
+
+	for rows.Next() {
+		var m dto.MissionV2
+		if err := rows.Scan(
+			&m.ID,
+			&m.Name,
+			&m.MaxFails,
+			&m.Priority,
+			&m.SquadSize,
+			&m.GameID,
+		); err != nil {
+			return nil, err
+		}
+		missions = append(missions, m)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return missions, nil
+}

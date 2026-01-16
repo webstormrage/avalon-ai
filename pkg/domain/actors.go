@@ -52,7 +52,6 @@ func GenerateActors(ctx context.Context, apiKey string, roles []presets.Role, mi
 			prompts.GetSystemPrompt(prompts.SystemPromptProps{
 				Name:        cfg.Name,
 				Mood:        cfg.Mood,
-				Risk:        cfg.Risk,
 				Players:     players,
 				Roles:       roles,
 				Role:        rolesOrder[i],

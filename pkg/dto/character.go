@@ -50,7 +50,19 @@ type GameV2 struct {
 	ID              int
 	MissionPriority int
 	LeaderPosition  int
+	SpeakerPosition int
 	SkipsCount      int
 	Wins            int
 	Fails           int
+	GameState       string
+}
+
+type Prompt struct {
+	ID            int
+	GameID        int
+	Model         string
+	SystemPrompt  string
+	MessagePrompt string
+	Response      string
+	Status        string
 }

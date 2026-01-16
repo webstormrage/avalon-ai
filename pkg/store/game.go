@@ -17,11 +17,12 @@ func CreateGame(
         INSERT INTO games (
             mission_priority,
             leader_position,
-            skips_count,
+            skips_count,               
             wins,
-            fails
+            fails,
+            game_state               
         )
-        VALUES ($1, $2, $3, $4, $5)
+        VALUES ($1, $2, $3, $4, $5, $6)
         RETURNING id
     `,
 		game.MissionPriority,
@@ -29,6 +30,7 @@ func CreateGame(
 		game.SkipsCount,
 		game.Wins,
 		game.Fails,
+		game.GameState,
 	).Scan(&game.ID)
 
 	if err != nil {
@@ -80,4 +82,43 @@ func CreateGameTransaction(
 	}
 
 	return gameID, nil
+}
+
+func GetGame(
+	ctx context.Context,
+	db *sql.DB,
+	gameID int,
+) (*dto.GameV2, error) {
+
+	var game dto.GameV2
+
+	err := db.QueryRowContext(ctx, `
+        SELECT
+            id,
+            mission_priority,
+            leader_position,
+            skips_count,
+            wins,
+            fails,
+            game_state
+        FROM games
+        WHERE id = $1
+    `, gameID).Scan(
+		&game.ID,
+		&game.MissionPriority,
+		&game.LeaderPosition,
+		&game.SkipsCount,
+		&game.Wins,
+		&game.Fails,
+		&game.GameState,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil // или domain error
+		}
+		return nil, err
+	}
+
+	return &game, nil
 }

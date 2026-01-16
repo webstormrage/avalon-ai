@@ -11,7 +11,7 @@ import (
 
 type StatementProps struct {
 	Resume  ResumeProps
-	Mission MissionProps
+	Mission dto.MissionV2
 }
 
 const statementPromptTpl = `

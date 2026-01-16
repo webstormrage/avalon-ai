@@ -1,6 +1,7 @@
 package server
 
 import (
+	"avalon/pkg/constants"
 	"avalon/pkg/dto"
 	"avalon/pkg/presets"
 	"avalon/pkg/store"
@@ -9,7 +10,6 @@ import (
 	"encoding/json"
 	"math/rand"
 	"net/http"
-	"time"
 )
 
 type GameHandler struct {
@@ -22,19 +22,24 @@ func (h *GameHandler) CreateGame(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-	defer cancel()
+	//ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	//defer cancel()
+	ctx := context.Background()
 
 	missions := presets.GetMissionsV2()
 
 	players := presets.GetPlayersV2()
 
+	leaderPosition := rand.Intn(len(players)) + 1
+
 	game := &dto.GameV2{
 		MissionPriority: 1,
-		LeaderPosition:  rand.Intn(len(players)),
+		LeaderPosition:  leaderPosition,
+		SpeakerPosition: leaderPosition,
 		SkipsCount:      0,
 		Wins:            0,
 		Fails:           0,
+		GameState:       constants.STATE_DISCUSSION,
 	}
 
 	gameID, err := store.CreateGameTransaction(ctx, h.DB, game, missions, players)
