@@ -1,7 +1,7 @@
 package server
 
 import (
-	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 )
@@ -25,13 +25,15 @@ func (h *GameHandler) NextTick(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.stateMachine(gameID)
+	state, err := h.stateMachine(gameID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(map[string]int{
-		"gameId": gameID,
-	})
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	_, err = fmt.Fprint(w, state)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }
