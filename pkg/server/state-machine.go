@@ -21,7 +21,7 @@ func (h *GameHandler) getState(tx store.QueryRower, gameID int) (string, error) 
 	if len(pendingPrompts) > 0 {
 		promptStatus = pendingPrompts[0].Status
 	}
-	return  fmt.Sprintf("%s %d:%d {%d} Leader#%d Speaker#%d %s", game.GameState, game.Wins, game.Fails, game.SkipsCount, game.LeaderPosition, game.SpeakerPosition, promptStatus), nil
+	return fmt.Sprintf("%s %d:%d {%d} Leader#%d Speaker#%d %s", game.GameState, game.Wins, game.Fails, game.SkipsCount, game.LeaderPosition, game.SpeakerPosition, promptStatus), nil
 }
 
 func (h *GameHandler) stateMachine(gameID int) (string, error) {
@@ -50,10 +50,21 @@ func (h *GameHandler) stateMachine(gameID int) (string, error) {
 		} else {
 			err = h.handleSpeakerDiscussion(tx, gameID)
 		}
+	case constants.STATE_VOTING:
+		if isLeader {
+			err = h.handleLeaderVoting(tx, gameID)
+		} else {
+			err = h.handleSpeakerVoting(tx, gameID)
+		}
 	case constants.STATE_MISSION:
 		err = h.handleMission(tx, gameID)
+	case constants.STATE_ASSASSIONATION:
+		err = h.handleAssassination(tx, gameID)
+	case constants.STATE_RED_VICTORY:
+		return initialState, nil
+	case constants.STATE_BLUE_VICTORY:
+		return initialState, nil
 	}
-	case constants.STATE_MI
 	if err != nil {
 		return "", err
 	}
