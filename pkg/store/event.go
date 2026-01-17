@@ -18,15 +18,17 @@ func CreateEvent(
             game_id,
             source,
             type,               
-            content             
+            content,
+            hidden
         )
-        VALUES ($1, $2, $3, $4)
+        VALUES ($1, $2, $3, $4, $5)
         RETURNING id
     `,
 		event.GameID,
 		event.Source,
 		event.Type,
 		event.Content,
+		event.Hidden,
 	).Scan(&event.ID)
 
 	if err != nil {
@@ -48,9 +50,11 @@ func GetEventsByGameID(
 			game_id,
 			source,
 			type,
-			content
+			content,
+			hidden
 		FROM events
 		WHERE game_id = $1
+		  AND hidden = FALSE
 		ORDER BY created_at ASC
 	`, gameID)
 	if err != nil {
@@ -68,6 +72,7 @@ func GetEventsByGameID(
 			&event.Source,
 			&event.Type,
 			&event.Content,
+			&event.Hidden,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("scan event: %w", err)
@@ -98,7 +103,8 @@ func GetLastEventByGameIDAndType(
 			game_id,
 			source,
 			type,
-			content
+			content,
+			hidden
 		FROM events
 		WHERE game_id = $1
 		  AND type = $2
@@ -110,6 +116,7 @@ func GetLastEventByGameIDAndType(
 		&event.Source,
 		&event.Type,
 		&event.Content,
+		&event.Hidden,
 	)
 
 	if err != nil {
@@ -120,4 +127,54 @@ func GetLastEventByGameIDAndType(
 	}
 
 	return &event, nil
+}
+
+func GetEventsByGameIDAndType(
+	ctx context.Context,
+	tx QueryRower,
+	gameID int,
+	eventType string,
+) ([]*dto.Event, error) {
+
+	rows, err := tx.QueryContext(ctx, `
+		SELECT
+			id,
+			game_id,
+			source,
+			type,
+			content,
+			hidden
+		FROM events
+		WHERE game_id = $1
+		  AND type = $2
+		ORDER BY created_at ASC
+	`, gameID, eventType)
+	if err != nil {
+		return nil, fmt.Errorf("get events by game id and type: %w", err)
+	}
+	defer rows.Close()
+
+	var events []*dto.Event
+
+	for rows.Next() {
+		var event dto.Event
+		if err := rows.Scan(
+			&event.ID,
+			&event.GameID,
+			&event.Source,
+			&event.Type,
+			&event.Content,
+			&event.Hidden,
+		); err != nil {
+			return nil, fmt.Errorf("scan event: %w", err)
+		}
+
+		events = append(events, &event)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate events: %w", err)
+	}
+
+	return events, nil
 }

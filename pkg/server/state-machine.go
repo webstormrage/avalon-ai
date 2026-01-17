@@ -18,12 +18,17 @@ func (h *GameHandler) stateMachine(gameID int) error {
 		return err
 	}
 
+	var isLeader bool = game.SpeakerPosition == game.LeaderPosition
 	switch game.GameState {
 	case constants.STATE_DISCUSSION:
-		if game.SpeakerPosition == game.LeaderPosition {
+		if isLeader {
 			err = h.handleLeaderDiscussion(tx, gameID)
 		} else {
 			err = h.handleSpeakerDiscussion(tx, gameID)
+		}
+	case constants.STATE_VOTING:
+		if isLeader {
+			err = h.handleLeaderVoting(tx, gameID)
 		}
 	}
 	if err != nil {

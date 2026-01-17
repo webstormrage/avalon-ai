@@ -54,6 +54,8 @@ CREATE TABLE IF NOT EXISTS prompts (
     message_prompt TEXT NOT NULL,
     
     response TEXT NOT NULL DEFAULT '',
+    
+    hidden BOOLEAN NOT NULL DEFAULT FALSE,
    
     status TEXT NOT NULL DEFAULT 'NOT_STARTED'
 );

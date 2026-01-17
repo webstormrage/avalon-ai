@@ -15,7 +15,8 @@ type VoteProps struct {
 }
 
 const votePromptTpl = `
-Лидер ({{.Leader}}) выставил свой финальный состав на Миссию — {{add .Mission.Index 1}} (участников: {{.Mission.Size}})
+Лидер ({{.Leader}}) предложил состав на {{.Mission.Name}},
+(допустимое количество провалов {{.Mission.MaxFails}})
 Предлагаемый состав - {{.Team}}
 
 Вы можете проголосовать либо против, либо за.
@@ -27,22 +28,22 @@ const votePromptTpl = `
 Последнее предложение в вашей речи должно быть либо Голосовать: ПРОТИВ, либо Голосовать: ЗА
 `
 
-func ExtractVote(text string) bool {
+func ExtractVote(text string) string {
 	re := regexp.MustCompile(`(?i)Голосовать:\s*(ЗА|ПРОТИВ)\s*$`)
 	m := re.FindStringSubmatch(text)
 
 	if len(m) < 2 {
-		return false
+		return ""
 	}
 
 	// нормализуем результат
 	switch strings.ToUpper(m[1]) {
 	case "ЗА":
-		return true
+		return "ЗА"
 	case "ПРОТИВ":
-		return false
+		return "ПРОТИВ"
 	default:
-		return false
+		return ""
 	}
 }
 

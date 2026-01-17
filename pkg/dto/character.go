@@ -73,4 +73,5 @@ type Event struct {
 	Source  string
 	Type    string
 	Content string
+	Hidden  bool
 }
