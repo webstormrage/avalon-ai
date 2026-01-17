@@ -95,6 +95,7 @@ func GetSystemPrompt(props SystemPromptProps) string {
 				"formatPlayers":  formatPlayers,
 				"formatRoles":    formatRoles,
 				"formatMissions": formatMissions,
+				"formatRed":      formatRed,
 			}).
 			Parse(systemPromptTpl),
 	)

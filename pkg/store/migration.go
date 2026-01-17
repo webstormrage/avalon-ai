@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS prompts (
     
     message_prompt TEXT NOT NULL,
     
-    response TEXT,
+    response TEXT NOT NULL DEFAULT '',
    
     status TEXT NOT NULL DEFAULT 'NOT_STARTED'
 );

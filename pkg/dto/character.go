@@ -21,7 +21,7 @@ func NewCharacter(
 
 func (c *Character) Send(
 	instruction string,
-	logs []Action,
+	logs []*Event,
 ) (string, error) {
 	return c.agent.Send(c.Persona, c.systemPrompt, instruction, logs)
 }

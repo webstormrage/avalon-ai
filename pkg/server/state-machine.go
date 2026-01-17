@@ -26,5 +26,8 @@ func (h *GameHandler) stateMachine(gameID int) error {
 			err = h.handleSpeakerDiscussion(tx, gameID)
 		}
 	}
-	return err
+	if err != nil {
+		return err
+	}
+	return tx.Commit()
 }

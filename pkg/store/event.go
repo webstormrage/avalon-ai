@@ -48,8 +48,7 @@ func GetEventsByGameID(
 			game_id,
 			source,
 			type,
-			content,
-			created_at
+			content
 		FROM events
 		WHERE game_id = $1
 		ORDER BY created_at ASC
@@ -99,8 +98,7 @@ func GetLastEventByGameIDAndType(
 			game_id,
 			source,
 			type,
-			content,
-			created_at
+			content
 		FROM events
 		WHERE game_id = $1
 		  AND type = $2

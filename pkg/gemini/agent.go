@@ -17,7 +17,7 @@ func i32(v int32) *int32 {
 	return &v
 }
 
-func getContents(logs []dto.Event, user string) []*genai.Content {
+func getContents(logs []*dto.Event, user string) []*genai.Content {
 	var contents []*genai.Content
 
 	for _, log := range logs {
@@ -75,7 +75,7 @@ func (a *GeminiAgent) Send(
 	persona dto.Persona,
 	systemPrompt string,
 	instruction string,
-	logs []dto.Event,
+	logs []*dto.Event,
 ) (string, error) {
 
 	model := a.client.GenerativeModel(persona.ModelName)

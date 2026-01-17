@@ -54,7 +54,7 @@ func (h *GameHandler) createSpeakerDiscussionPrompt(tx store.QueryRower, gameID 
 		),
 		MessagePrompt: prompts.RenderCommentPrompt(prompts.VoteProps{
 			Mission: *mission,
-			Leader:  leader.Model,
+			Leader:  leader.Name,
 			Team:    squadEvent.Content,
 		}),
 	})
