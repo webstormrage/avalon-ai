@@ -25,7 +25,7 @@ func (h *GameHandler) NextTick(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	state, err := h.stateMachine(gameID)
+	state, err := h.handleNextState(gameID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}

@@ -4,7 +4,6 @@ import (
 	"avalon/pkg/dto"
 	"bytes"
 	"regexp"
-	"slices"
 	"strings"
 	"text/template"
 )
@@ -52,18 +51,6 @@ func ExtractTeam(text string) ([]string, bool) {
 	}
 
 	return players, true
-}
-
-func ExtractCharacters(message string, players []*dto.Character) []*dto.Character {
-	leaderStatement, _ := ExtractTeam(message)
-	leaderTeam := []*dto.Character{}
-	for _, l := range leaderStatement {
-		idx := slices.IndexFunc(players, func(p *dto.Character) bool {
-			return strings.ToLower(p.Persona.Self) == strings.ToLower(l)
-		})
-		leaderTeam = append(leaderTeam, players[idx])
-	}
-	return leaderTeam
 }
 
 func RenderStatementPrompt(view StatementProps) string {

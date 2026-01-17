@@ -2,30 +2,5 @@ package constants
 
 const ROLE_MERLIN = "Мерлин"
 const ROLE_ARTHURS_LOYAL = "Слуга Артура"
-
 const ROLE_ASSASSIN = "Ассасин"
-
 const ROLE_MORDRED_MINION = "Миньон Мордреда"
-
-const STATE_DISCUSSION = "DISCUSSION"
-const STATE_VOTING = "VOTING"
-const STATE_MISSION = "MISSION"
-const STATE_ASSASSIONATION = "ASSASSIONATION"
-const STATE_RED_VICTORY = "RED_VICTORY"
-const STATE_BLUE_VICTORY = "BLUE_VICTORY"
-
-const STATUS_NOT_STARTED = "NOT_STARTED"
-const STATUS_HAS_RESPONSE = "HAS_RESPONSE"
-
-// const STATUS_APPROVED = "APPROVED"
-const STATUS_COMPLETED = "COMPLETED"
-
-const EVENT_PLAYER_SPEECH = "<Прямая речь игрока>"
-const EVENT_SQUAD_DECLARATION = "<Заявка состава на миссию лидером>"
-const EVENT_SQUAD_STATEMENT = "<Утверждение состава на миссию лидером>"
-const EVENT_SQUAD_ROSTER = "<Текущий состав на миссию>" // внутреннее событие
-const EVENT_SQUAD_VOTE = "<Голос игрока>"
-const EVENT_SQUAD_VOTE_RESULT = "<Результаты голосования за состав>"
-const EVENT_PLAYER_MISSION_RESULT = "<Результаты игрока на миссии>"
-const EVENT_SQUAD_MISSION_RESULT = "<Результаты миссии>"
-const EVENT_ASSASSINATION = "<Покушение>"

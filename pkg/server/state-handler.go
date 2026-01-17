@@ -24,7 +24,7 @@ func (h *GameHandler) getState(tx store.QueryRower, gameID int) (string, error) 
 	return fmt.Sprintf("%s %d:%d {%d} Leader#%d Speaker#%d %s", game.GameState, game.Wins, game.Fails, game.SkipsCount, game.LeaderPosition, game.SpeakerPosition, promptStatus), nil
 }
 
-func (h *GameHandler) stateMachine(gameID int) (string, error) {
+func (h *GameHandler) handleNextState(gameID int) (string, error) {
 	tx, err := h.DB.BeginTx(h.Ctx, nil)
 	if err != nil {
 		return "", err
