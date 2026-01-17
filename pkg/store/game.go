@@ -130,3 +130,38 @@ func GetGame(
 
 	return &game, nil
 }
+
+func UpdateGame(
+	ctx context.Context,
+	db QueryRower,
+	game *dto.GameV2,
+) error {
+
+	_, err := db.ExecContext(ctx, `
+		UPDATE games
+		SET
+			mission_priority = $1,
+			leader_position  = $2,
+			speaker_position = $3,
+			skips_count      = $4,
+			wins             = $5,
+			fails            = $6,
+			game_state       = $7
+		WHERE id = $8
+	`,
+		game.MissionPriority,
+		game.LeaderPosition,
+		game.SpeakerPosition,
+		game.SkipsCount,
+		game.Wins,
+		game.Fails,
+		game.GameState,
+		game.ID,
+	)
+
+	if err != nil {
+		return fmt.Errorf("update game %d: %w", game.ID, err)
+	}
+
+	return nil
+}

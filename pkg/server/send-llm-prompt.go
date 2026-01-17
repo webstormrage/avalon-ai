@@ -6,9 +6,25 @@ import (
 	"avalon/pkg/store"
 )
 
-func (h *GameHandler) sendLlmPrompt(game *dto.GameV2, prompt *dto.Prompt) error {
-	speaker, err := store.GetPlayerByPosition(h.Ctx, h.DB, game.ID, game.SpeakerPosition)
+func (h *GameHandler) sendLlmPrompt(tx store.QueryRower, gameID int) error {
+	pendingPrompts, err := store.GetPromptsNotCompletedByGameID(h.Ctx, tx, gameID)
+	if err != nil {
+		return err
+	}
+	prompt := pendingPrompts[0]
 
+	game, err := store.GetGame(h.Ctx, tx, gameID)
+	if err != nil {
+		return err
+	}
+
+	speaker, err := store.GetPlayerByPosition(h.Ctx, tx, gameID, game.SpeakerPosition)
+
+	if err != nil {
+		return err
+	}
+
+	events, err := store.GetEventsByGameID(h.Ctx, tx, gameID)
 	if err != nil {
 		return err
 	}
@@ -19,7 +35,7 @@ func (h *GameHandler) sendLlmPrompt(game *dto.GameV2, prompt *dto.Prompt) error 
 	},
 		prompt.SystemPrompt,
 		prompt.MessagePrompt,
-		[]dto.Action{}, //TODO: передавать логи!!!
+		events,
 	)
 	if err != nil {
 		return err
@@ -27,5 +43,5 @@ func (h *GameHandler) sendLlmPrompt(game *dto.GameV2, prompt *dto.Prompt) error 
 	prompt.Response = response
 	prompt.Status = constants.STATUS_HAS_RESPONSE
 
-	return store.UpdatePrompt(h.Ctx, h.DB, prompt)
+	return store.UpdatePrompt(h.Ctx, tx, &prompt)
 }

@@ -5,7 +5,7 @@ type Agent interface {
 		persona Persona,
 		systemPrompt string,
 		instruction string,
-		logs []Action,
+		logs []*Event,
 	) (string, error)
 
 	Close() error

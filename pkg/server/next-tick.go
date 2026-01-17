@@ -1,7 +1,6 @@
 package server
 
 import (
-	"avalon/pkg/store"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -26,23 +25,7 @@ func (h *GameHandler) NextTick(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx := h.Ctx
-
-	game, err := store.GetGame(ctx, h.DB, gameID)
-
-	if err != nil {
-		http.Error(w, "Failed to find game", http.StatusInternalServerError)
-		return
-	}
-
-	prompts, err := store.GetPromptsNotCompletedByGameID(ctx, h.DB, gameID)
-
-	if err != nil || len(prompts) > 1 {
-		http.Error(w, "too many uncompleted prompts", http.StatusInternalServerError)
-		return
-	}
-
-	err = h.stateMachine(game, prompts)
+	err = h.stateMachine(gameID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}

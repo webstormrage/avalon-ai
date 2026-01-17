@@ -17,19 +17,19 @@ func i32(v int32) *int32 {
 	return &v
 }
 
-func getContents(logs []dto.Action, user string) []*genai.Content {
+func getContents(logs []dto.Event, user string) []*genai.Content {
 	var contents []*genai.Content
 
 	for _, log := range logs {
 		var role string
 		var message string
 
-		if log.User == user {
+		if log.Source == user {
 			role = "model"
-			message = log.Message
+			message = log.Content
 		} else {
 			role = "user"
-			message = log.User + ": " + log.Message
+			message = fmt.Sprintf("[%s]%s: %s\n", log.Source, log.Type, log.Content)
 		}
 
 		contents = append(contents, &genai.Content{
@@ -75,7 +75,7 @@ func (a *GeminiAgent) Send(
 	persona dto.Persona,
 	systemPrompt string,
 	instruction string,
-	logs []dto.Action,
+	logs []dto.Event,
 ) (string, error) {
 
 	model := a.client.GenerativeModel(persona.ModelName)
