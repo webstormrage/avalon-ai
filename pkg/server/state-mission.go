@@ -7,17 +7,16 @@ import (
 	"avalon/pkg/prompts"
 	"avalon/pkg/store"
 	"fmt"
+	"strconv"
+	"strings"
 )
 
-func (h *GameHandler) createSpeakerVotingPrompt(tx store.QueryRower, gameID int) error {
+func (h *GameHandler) createMissionPrompt(tx store.QueryRower, gameID int) error {
 	game, err := store.GetGame(h.Ctx, tx, gameID)
 	if err != nil {
 		return err
 	}
-	leader, err := store.GetPlayerByPosition(h.Ctx, tx, game.ID, game.LeaderPosition)
-	if err != nil {
-		return err
-	}
+
 	players, err := store.GetPlayersByGameID(h.Ctx, tx, game.ID)
 	if err != nil {
 		return err
@@ -31,7 +30,26 @@ func (h *GameHandler) createSpeakerVotingPrompt(tx store.QueryRower, gameID int)
 		return err
 	}
 
-	speaker, err := store.GetPlayerByPosition(h.Ctx, tx, game.ID, game.SpeakerPosition)
+	rosterEvent, err := store.GetLastEventByGameIDAndType(h.Ctx, tx, gameID, constants.EVENT_SQUAD_ROSTER)
+	if err != nil {
+		return err
+	}
+	squadNumbers := strings.Split(rosterEvent.Content, ", ")
+	game.SpeakerPosition, err = strconv.Atoi(squadNumbers[0])
+	if err != nil {
+		return err
+	}
+
+	if len(squadNumbers) > 1 {
+		err = store.CreateEvent(h.Ctx, tx, &dto.Event{
+			GameID:  game.ID,
+			Type:    constants.EVENT_SQUAD_ROSTER,
+			Source:  rosterEvent.Source,
+			Content: strings.Join(squadNumbers[1:], ", "),
+			Hidden:  true,
+		})
+	}
+	speaker, err := store.GetPlayerByPosition(h.Ctx, tx, gameID, game.SpeakerPosition)
 	if err != nil {
 		return err
 	}
@@ -53,15 +71,15 @@ func (h *GameHandler) createSpeakerVotingPrompt(tx store.QueryRower, gameID int)
 				Missions: missions,
 			},
 		),
-		MessagePrompt: prompts.RenderVotePrompt(prompts.VoteProps{
+		MessagePrompt: prompts.RenderCompletionPrompt(prompts.VoteProps{
 			Mission: *mission,
-			Leader:  leader.Name,
+			Leader:  squadEvent.Source,
 			Team:    squadEvent.Content,
 		}),
 	})
 }
 
-func (h *GameHandler) applySpeakerVotingPrompt(tx store.QueryRower, gameID int) error {
+func (h *GameHandler) applyMissionPrompt(tx store.QueryRower, gameID int) error {
 	pendingPrompts, err := store.GetPromptsNotCompletedByGameID(h.Ctx, tx, gameID)
 	if err != nil {
 		return err
@@ -79,11 +97,18 @@ func (h *GameHandler) applySpeakerVotingPrompt(tx store.QueryRower, gameID int) 
 		return err
 	}
 
-	speaker, err := store.GetPlayerByPosition(h.Ctx, tx, game.ID, game.SpeakerPosition)
+	speaker, err := store.GetPlayerByPosition(h.Ctx, tx, gameID, game.SpeakerPosition)
 	if err != nil {
 		return err
 	}
 
+	err = store.CreateEvent(h.Ctx, tx, &dto.Event{
+		GameID:  game.ID,
+		Type:    constants.EVENT_PLAYER_MISSION_RESULT,
+		Source:  speaker.Name,
+		Content: prompts.ExtractMissionResult(prompt.Response),
+		Hidden:  true,
+	})
 	err = store.CreateEvent(h.Ctx, tx, &dto.Event{
 		GameID:  game.ID,
 		Type:    constants.EVENT_PLAYER_SPEECH,
@@ -95,28 +120,19 @@ func (h *GameHandler) applySpeakerVotingPrompt(tx store.QueryRower, gameID int) 
 		return err
 	}
 
-	err = store.CreateEvent(h.Ctx, tx, &dto.Event{
-		GameID:  game.ID,
-		Type:    constants.EVENT_SQUAD_VOTE,
-		Source:  speaker.Name,
-		Content: prompts.ExtractVote(prompt.Response),
-		Hidden:  true,
-	})
+	mission, err := store.GetMissionByPriority(h.Ctx, tx, game.ID, game.MissionPriority)
 	if err != nil {
 		return err
 	}
 
-	count, err := store.CountPlayersByGameID(h.Ctx, tx, game.ID)
+	rosterEvent, err := store.GetLastEventByGameIDAndType(h.Ctx, tx, gameID, constants.EVENT_SQUAD_ROSTER)
 	if err != nil {
 		return err
 	}
+	squadNumbers := strings.Split(rosterEvent.Content, ", ")
 
-	game.SpeakerPosition += 1
-	if game.SpeakerPosition > count {
-		game.SpeakerPosition = 1
-	}
-	if game.SpeakerPosition == game.LeaderPosition {
-		votes, err := store.GetEventsByGameIDAndType(h.Ctx, tx, gameID, constants.EVENT_SQUAD_VOTE, count-1)
+	if len(squadNumbers) == 1 {
+		votes, err := store.GetEventsByGameIDAndType(h.Ctx, tx, gameID, constants.EVENT_PLAYER_MISSION_RESULT, mission.SquadSize)
 		if err != nil {
 			return err
 		}
@@ -124,25 +140,21 @@ func (h *GameHandler) applySpeakerVotingPrompt(tx store.QueryRower, gameID int) 
 		votesAgainst := 0
 		votesResult := ""
 		for _, vote := range votes {
-			if vote.Content == "ЗА" {
+			if vote.Content == "УСПЕХ" {
 				votesFor += 1
-				votesResult += vote.Source + " проголосовал ЗА\n"
 			} else {
 				votesAgainst += 1
-				votesResult += vote.Source + " проголосовал ПРОТИВ\n"
 			}
 		}
-		votesResult += fmt.Sprintf("Итоги голосования.\nЗа - %d\nПротив - %d\n", votesFor, votesAgainst)
-		if votesAgainst > votesFor {
-			votesResult += "Состав не одобрен."
-			game.SkipsCount += 1
+		votesResult += fmt.Sprintf("Итоги миссии.\nУспех - %d\nПровал - %d\n", votesFor, votesAgainst)
+		if votesAgainst > mission.MaxFails {
+			game.Fails++
 		} else {
-			votesResult += "Состав одобрен."
-			game.SkipsCount = 0
+			game.Wins++
 		}
 		err = store.CreateEvent(h.Ctx, tx, &dto.Event{
 			GameID:  game.ID,
-			Type:    constants.EVENT_SQUAD_VOTE_RESULT,
+			Type:    constants.EVENT_SQUAD_MISSION_RESULT,
 			Source:  speaker.Name,
 			Content: votesResult,
 		})
@@ -150,36 +162,40 @@ func (h *GameHandler) applySpeakerVotingPrompt(tx store.QueryRower, gameID int) 
 			return err
 		}
 
-		if game.SkipsCount >= 5 {
+		if game.Wins >= 3 {
+			game.GameState = constants.STATE_ASSASSIONATION
+		} else if game.Fails >= 3 {
 			game.GameState = constants.STATE_RED_VICTORY
-		} else if votesAgainst > votesFor {
+		} else {
+			count, err := store.CountPlayersByGameID(h.Ctx, tx, game.ID)
+			if err != nil {
+				return err
+			}
 			game.GameState = constants.STATE_DISCUSSION
 			game.LeaderPosition += 1
 			if game.LeaderPosition > count {
 				game.LeaderPosition = 1
 			}
 			game.SpeakerPosition = game.LeaderPosition
-		} else {
-			game.GameState = constants.STATE_MISSION
 		}
 	}
 
 	return store.UpdateGame(h.Ctx, tx, game)
 }
 
-func (h *GameHandler) handleSpeakerVoting(tx store.QueryRower, gameID int) error {
+func (h *GameHandler) handleMission(tx store.QueryRower, gameID int) error {
 	pendingPrompts, err := store.GetPromptsNotCompletedByGameID(h.Ctx, tx, gameID)
 	if err != nil {
 		return err
 	}
 	if len(pendingPrompts) == 0 {
-		err = h.createSpeakerVotingPrompt(tx, gameID)
+		err = h.createMissionPrompt(tx, gameID)
 	} else {
 		switch pendingPrompts[0].Status {
 		case constants.STATUS_NOT_STARTED:
 			err = h.sendLlmPrompt(tx, gameID)
 		case constants.STATUS_HAS_RESPONSE:
-			err = h.applySpeakerVotingPrompt(tx, gameID)
+			err = h.applyMissionPrompt(tx, gameID)
 		}
 	}
 	return err

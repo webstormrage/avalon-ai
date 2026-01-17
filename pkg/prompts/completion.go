@@ -8,32 +8,33 @@ import (
 )
 
 const completionPromptTpl = `
-Лидер ({{.Leader}}) выставил вас в свой финальный состав на Миссию — {{add .Mission.Index 1}} (участников: {{.Mission.Size}})
-Полный состав - {{.Team}}
+Лидер ({{.Leader}}) выставил вас в свой финальный состав на {{.Mission.Name}},
+(допустимое количество провалов {{.Mission.MaxFails}})
+Предлагаемый состав - {{.Team}}
 
 Вы сейчас находитесь на Миссии. Вы можете либо успещно выполнить свою часть, либо провалить.
 Остальные игроки не узнают, что именно вы выбрали и не увидят вашу речь.
 Но они будут знать число провалов и успехов в этой миссии.
-Для провала миссии достаточно 1 провала, а для успеха требуется, чтобы все участники миссии совершили успех.
+Для провала миссии достаточно {{add .Mission.MaxFails 1}}) провала, иначе миссия будет считаться успешной.
 
 Последнее предложение в вашей речи должно быть либо Совершить: УСПЕХ или Совершить: ПРОВАЛ
 `
 
-func ExtractMissionResult(text string) bool {
+func ExtractMissionResult(text string) string {
 	re := regexp.MustCompile(`(?i)Совершить:\s*(УСПЕХ|ПРОВАЛ)\s*$`)
 	m := re.FindStringSubmatch(text)
 
 	if len(m) < 2 {
-		return true
+		return "УСПЕХ"
 	}
 
 	switch strings.ToUpper(m[1]) {
 	case "УСПЕХ":
-		return true
+		return "УСПЕХ"
 	case "ПРОВАЛ":
-		return false
+		return "ПРОВАЛ"
 	default:
-		return true
+		return "УСПЕХ"
 	}
 }
 
