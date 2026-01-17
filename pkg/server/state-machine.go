@@ -29,6 +29,8 @@ func (h *GameHandler) stateMachine(gameID int) error {
 	case constants.STATE_VOTING:
 		if isLeader {
 			err = h.handleLeaderVoting(tx, gameID)
+		} else {
+			err = h.handleSpeakerVoting(tx, gameID)
 		}
 	}
 	if err != nil {

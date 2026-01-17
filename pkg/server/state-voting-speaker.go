@@ -116,7 +116,7 @@ func (h *GameHandler) applySpeakerVotingPrompt(tx store.QueryRower, gameID int) 
 		game.SpeakerPosition = 1
 	}
 	if game.SpeakerPosition == game.LeaderPosition {
-		votes, err := store.GetEventsByGameIDAndType(h.Ctx, tx, gameID, constants.EVENT_SQUAD_VOTE)
+		votes, err := store.GetEventsByGameIDAndType(h.Ctx, tx, gameID, constants.EVENT_SQUAD_VOTE, count-1)
 		if err != nil {
 			return err
 		}

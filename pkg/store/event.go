@@ -134,6 +134,7 @@ func GetEventsByGameIDAndType(
 	tx QueryRower,
 	gameID int,
 	eventType string,
+	limit int,
 ) ([]*dto.Event, error) {
 
 	rows, err := tx.QueryContext(ctx, `
@@ -144,13 +145,25 @@ func GetEventsByGameIDAndType(
 			type,
 			content,
 			hidden
-		FROM events
-		WHERE game_id = $1
-		  AND type = $2
+		FROM (
+			SELECT
+				id,
+				game_id,
+				source,
+				type,
+				content,
+				hidden,
+				created_at
+			FROM events
+			WHERE game_id = $1
+			  AND type = $2
+			ORDER BY created_at DESC
+			LIMIT $3
+		) t
 		ORDER BY created_at ASC
-	`, gameID, eventType)
+	`, gameID, eventType, limit)
 	if err != nil {
-		return nil, fmt.Errorf("get events by game id and type: %w", err)
+		return nil, fmt.Errorf("get last n events by game id and type: %w", err)
 	}
 	defer rows.Close()
 
