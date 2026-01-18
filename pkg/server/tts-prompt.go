@@ -53,7 +53,7 @@ func (h *GameHandler) TtsPrompt(w http.ResponseWriter, r *http.Request) {
 	}
 
 	audio, err := h.TtsAgent.Send(
-		"gemini-2.0-flash-tts", // TODO: store at player
+		"gemini-2.5-flash-preview-tts", // TODO: store at player
 		speaker.Voice,
 		prompt.Response,
 		nil, //TODO: extract from model response
@@ -69,7 +69,7 @@ func (h *GameHandler) TtsPrompt(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fileName := fmt.Sprintf("[Game-%d] prompt-%d %s (%s).mp3", gameID, prompt.ID, speaker.Name, speaker.Voice)
+	fileName := fmt.Sprintf("[Game-%d] prompt-%d %s (%s).wav", gameID, prompt.ID, speaker.Name, speaker.Voice)
 
 	fullPath := filepath.Join(h.MediaDir, fileName)
 

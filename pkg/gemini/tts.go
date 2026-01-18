@@ -4,10 +4,12 @@ import (
 	"avalon/pkg/dto"
 	"bytes"
 	"encoding/base64"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
+	"strings"
 )
 
 type TtsGeminiAgent struct {
@@ -23,6 +25,44 @@ func NewTtsAgent(apiKey string) dto.TtsAgent {
 	}
 }
 
+func addWavHeader(pcmData []byte) []byte {
+	sampleRate := 24000
+	numChannels := 1
+	bitsPerSample := 16
+
+	dataLen := len(pcmData)
+	header := make([]byte, 44)
+
+	// Chunk ID
+	copy(header[0:4], "RIFF")
+	// Chunk Size
+	binary.LittleEndian.PutUint32(header[4:8], uint32(36+dataLen))
+	// Format
+	copy(header[8:12], "WAVE")
+	// Subchunk1 ID
+	copy(header[12:16], "fmt ")
+	// Subchunk1 Size
+	binary.LittleEndian.PutUint32(header[16:20], 16)
+	// Audio Format (1 = PCM)
+	binary.LittleEndian.PutUint16(header[20:22], 1)
+	// Num Channels
+	binary.LittleEndian.PutUint16(header[22:24], uint16(numChannels))
+	// Sample Rate
+	binary.LittleEndian.PutUint32(header[24:28], uint32(sampleRate))
+	// Byte Rate
+	binary.LittleEndian.PutUint32(header[28:32], uint32(sampleRate*numChannels*bitsPerSample/8))
+	// Block Align
+	binary.LittleEndian.PutUint16(header[32:34], uint16(numChannels*bitsPerSample/8))
+	// Bits Per Sample
+	binary.LittleEndian.PutUint16(header[34:36], uint16(bitsPerSample))
+	// Subchunk2 ID
+	copy(header[36:40], "data")
+	// Subchunk2 Size
+	binary.LittleEndian.PutUint32(header[40:44], uint32(dataLen))
+
+	return append(header, pcmData...)
+}
+
 type ttsRequest struct {
 	Contents []struct {
 		Parts []struct {
@@ -30,7 +70,11 @@ type ttsRequest struct {
 		} `json:"parts"`
 	} `json:"contents"`
 	GenerationConfig struct {
-		SpeechConfig struct {
+		ResponseModalities []string `json:"responseModalities"`
+		Temperature        float64  `json:"temperature"` // Добавлено
+		TopP               float64  `json:"topP"`        // Добавлено
+		TopK               int      `json:"topK"`        // Добавлено
+		SpeechConfig       struct {
 			VoiceConfig struct {
 				PrebuiltVoiceConfig struct {
 					VoiceName string `json:"voiceName"`
@@ -74,10 +118,26 @@ func (c *TtsGeminiAgent) Send(
 		return nil, errors.New("text is empty")
 	}
 
-	// Формируем итоговый текст (systemStyle не озвучивается)
+	// 1. Приводим текст к нижнему регистру
+	text = strings.ToLower(text)
+
+	// 2. Убираем двоеточия (заменяем на тире для естественной паузы)
+	text = strings.ReplaceAll(text, ":", " —")
+	text = strings.ReplaceAll(text, "\"", " ")
+	text = strings.ReplaceAll(text, "'", "")
+	text = strings.ReplaceAll(text, "*", "")
+
+	// 3. Убираем лишние переносы строк и двойные пробелы
+	text = strings.ReplaceAll(text, "\n", " ")
+	text = strings.Join(strings.Fields(text), " ")
+
+	// 4. Гарантируем точку в самом конце, чтобы фраза не обрывалась
+	if !strings.HasSuffix(text, ".") && !strings.HasSuffix(text, "!") && !strings.HasSuffix(text, "?") {
+		text += "."
+	}
 	finalText := text
 	if systemStyle != nil && *systemStyle != "" {
-		finalText = *systemStyle + "\n\nТекст:\n" + text
+		finalText = *systemStyle + "\n\nЗачитай следующий текст полностью ничего не отбрасывая:\n" + text
 	}
 
 	// Запрос
@@ -93,6 +153,13 @@ func (c *TtsGeminiAgent) Send(
 			{Text: finalText},
 		},
 	})
+
+	reqBody.GenerationConfig.ResponseModalities = []string{"AUDIO"}
+
+	// Рекомендуемые настройки для стабильного TTS:
+	reqBody.GenerationConfig.Temperature = 0.7 // Немного творчества для естественности голоса
+	reqBody.GenerationConfig.TopP = 0.95       // Оставляем почти все вероятные токены
+	reqBody.GenerationConfig.TopK = 40         // Стандартное значение для баланса
 
 	reqBody.GenerationConfig.
 		SpeechConfig.
@@ -156,5 +223,5 @@ func (c *TtsGeminiAgent) Send(
 		return nil, err
 	}
 
-	return audioBytes, nil
+	return addWavHeader(audioBytes), nil
 }

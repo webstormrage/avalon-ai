@@ -40,19 +40,12 @@ func (h *GameHandler) createMissionPrompt(tx store.QueryRower, gameID int) error
 		return err
 	}
 
-	if len(squadNumbers) > 1 {
-		err = store.CreateEvent(h.Ctx, tx, &dto.Event{
-			GameID:  game.ID,
-			Type:    constants.EVENT_SQUAD_ROSTER,
-			Source:  rosterEvent.Source,
-			Content: strings.Join(squadNumbers[1:], ", "),
-			Hidden:  true,
-		})
-	}
 	speaker, err := store.GetPlayerByPosition(h.Ctx, tx, gameID, game.SpeakerPosition)
 	if err != nil {
 		return err
 	}
+
+	err = store.UpdateGame(h.Ctx, tx, game)
 
 	squadEvent, err := store.GetLastEventByGameIDAndType(h.Ctx, tx, gameID, constants.EVENT_SQUAD_STATEMENT)
 	if err != nil {
@@ -131,7 +124,15 @@ func (h *GameHandler) applyMissionPrompt(tx store.QueryRower, gameID int) error 
 	}
 	squadNumbers := strings.Split(rosterEvent.Content, ", ")
 
-	if len(squadNumbers) == 1 {
+	if len(squadNumbers) > 1 {
+		return store.CreateEvent(h.Ctx, tx, &dto.Event{
+			GameID:  game.ID,
+			Type:    constants.EVENT_SQUAD_ROSTER,
+			Source:  rosterEvent.Source,
+			Content: strings.Join(squadNumbers[1:], ", "),
+			Hidden:  true,
+		})
+	} else {
 		votes, err := store.GetEventsByGameIDAndType(h.Ctx, tx, gameID, constants.EVENT_PLAYER_MISSION_RESULT, mission.SquadSize)
 		if err != nil {
 			return err
@@ -158,6 +159,7 @@ func (h *GameHandler) applyMissionPrompt(tx store.QueryRower, gameID int) error 
 			Source:  speaker.Name,
 			Content: votesResult,
 		})
+		game.MissionPriority++
 		if err != nil {
 			return err
 		}
@@ -178,9 +180,8 @@ func (h *GameHandler) applyMissionPrompt(tx store.QueryRower, gameID int) error 
 			}
 			game.SpeakerPosition = game.LeaderPosition
 		}
+		return store.UpdateGame(h.Ctx, tx, game)
 	}
-
-	return store.UpdateGame(h.Ctx, tx, game)
 }
 
 func (h *GameHandler) handleMission(tx store.QueryRower, gameID int) error {
