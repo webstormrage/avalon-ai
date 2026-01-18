@@ -31,6 +31,11 @@ func (h *GameHandler) createAssassinationPrompt(tx store.QueryRower, gameID int)
 	speaker := assassins[0]
 	game.SpeakerPosition = speaker.Position
 
+	err = store.UpdateGame(h.Ctx, tx, game)
+	if err != nil {
+		return err
+	}
+
 	return store.CreatePrompt(h.Ctx, tx, &dto.Prompt{
 		GameID: game.ID,
 		Model:  speaker.Model,

@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 
-func (h *GameHandler) getState(tx store.QueryRower, gameID int) (string, error) {
+func (h *GameHandler) getState(tx store.QueryRower, gameID int, showResponse bool) (string, error) {
 	game, err := store.GetGame(h.Ctx, tx, gameID)
 
 	if err != nil {
@@ -21,7 +21,12 @@ func (h *GameHandler) getState(tx store.QueryRower, gameID int) (string, error) 
 	if len(pendingPrompts) > 0 {
 		promptStatus = pendingPrompts[0].Status
 	}
-	return fmt.Sprintf("%s %d:%d {%d} Leader#%d Speaker#%d %s", game.GameState, game.Wins, game.Fails, game.SkipsCount, game.LeaderPosition, game.SpeakerPosition, promptStatus), nil
+	state := fmt.Sprintf("[%d] %s %d:%d {%d} Leader#%d Speaker#%d %s", game.MissionPriority, game.GameState, game.Wins, game.Fails, game.SkipsCount, game.LeaderPosition, game.SpeakerPosition, promptStatus)
+
+	if promptStatus == constants.STATUS_HAS_RESPONSE && showResponse {
+		state += fmt.Sprintf("\n%s\n", pendingPrompts[0].Response)
+	}
+	return state, nil
 }
 
 func (h *GameHandler) handleNextState(gameID int) (string, error) {
@@ -39,7 +44,7 @@ func (h *GameHandler) handleNextState(gameID int) (string, error) {
 
 	var isLeader bool = game.SpeakerPosition == game.LeaderPosition
 
-	initialState, err := h.getState(tx, gameID)
+	initialState, err := h.getState(tx, gameID, false)
 	if err != nil {
 		return "", err
 	}
@@ -69,7 +74,7 @@ func (h *GameHandler) handleNextState(gameID int) (string, error) {
 		return "", err
 	}
 
-	nextState, err := h.getState(tx, gameID)
+	nextState, err := h.getState(tx, gameID, true)
 	if err != nil {
 		return "", err
 	}
