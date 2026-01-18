@@ -27,6 +27,7 @@ func main() {
 	_ = godotenv.Load()
 	dsn := os.Getenv("DATA_SOURCE_NAME")
 	apiKey := os.Getenv("GEMINI_API_KEY")
+	mediaDir := os.Getenv("MEDIA_DIR")
 	if dsn == "" {
 		log.Fatal("DATABASE_URL is not set")
 	}
@@ -42,16 +43,24 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	ttsAgent := gemini.NewTtsAgent(apiKey)
 
 	if err := store.RunInitMigration(ctx, db); err != nil {
 		log.Fatal(err)
 	}
 
-	handler := &server.GameHandler{DB: db, Agent: agent, Ctx: ctx}
+	handler := &server.GameHandler{
+		DB:       db,
+		Agent:    agent,
+		Ctx:      ctx,
+		TtsAgent: ttsAgent,
+		MediaDir: mediaDir,
+	}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/games/new", handler.CreateGame)
 	mux.HandleFunc("/games/next-tick", handler.NextTick)
+	mux.HandleFunc("/tts/generate", handler.TtsPrompt)
 
 	server := &http.Server{
 		Addr:    ":8080",

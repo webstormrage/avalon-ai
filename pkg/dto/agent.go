@@ -10,3 +10,12 @@ type Agent interface {
 
 	Close() error
 }
+
+type TtsAgent interface {
+	Send(
+		model string,
+		voiceName string,
+		text string,
+		systemStyle *string,
+	) ([]byte, error)
+}

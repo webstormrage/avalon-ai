@@ -13,9 +13,11 @@ import (
 )
 
 type GameHandler struct {
-	DB    *sql.DB
-	Agent dto.Agent
-	Ctx   context.Context
+	DB       *sql.DB
+	Agent    dto.Agent
+	Ctx      context.Context
+	TtsAgent dto.TtsAgent
+	MediaDir string
 }
 
 func (h *GameHandler) CreateGame(w http.ResponseWriter, r *http.Request) {
