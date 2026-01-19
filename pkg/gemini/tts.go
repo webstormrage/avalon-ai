@@ -99,12 +99,14 @@ type ttsResponse struct {
 
 // Send отправляет текст в Gemini TTS и возвращает аудиобайты
 func (c *TtsGeminiAgent) Send(
-	model string,
-	voiceName string,
+	persona dto.PlayerV2,
 	text string,
 	systemStyle *string,
 ) ([]byte, error) {
 
+	model := persona.TtsModel
+	voiceName := persona.Voice
+	temperature := float64(persona.VoiceTemperature)
 	if c.apiKey == "" {
 		return nil, errors.New("apiKey is empty")
 	}
@@ -157,9 +159,9 @@ func (c *TtsGeminiAgent) Send(
 	reqBody.GenerationConfig.ResponseModalities = []string{"AUDIO"}
 
 	// Рекомендуемые настройки для стабильного TTS:
-	reqBody.GenerationConfig.Temperature = 0.7 // Немного творчества для естественности голоса
-	reqBody.GenerationConfig.TopP = 0.95       // Оставляем почти все вероятные токены
-	reqBody.GenerationConfig.TopK = 40         // Стандартное значение для баланса
+	reqBody.GenerationConfig.Temperature = temperature // Немного творчества для естественности голоса
+	reqBody.GenerationConfig.TopP = 0.95               // Оставляем почти все вероятные токены
+	reqBody.GenerationConfig.TopK = 40                 // Стандартное значение для баланса
 
 	reqBody.GenerationConfig.
 		SpeechConfig.
