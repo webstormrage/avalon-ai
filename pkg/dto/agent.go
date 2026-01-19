@@ -2,7 +2,7 @@ package dto
 
 type Agent interface {
 	Send(
-		persona Persona,
+		persona PlayerV2,
 		systemPrompt string,
 		instruction string,
 		logs []*Event,
@@ -13,8 +13,7 @@ type Agent interface {
 
 type TtsAgent interface {
 	Send(
-		model string,
-		voiceName string,
+		persona PlayerV2,
 		text string,
 		systemStyle *string,
 	) ([]byte, error)

@@ -2,7 +2,6 @@ package server
 
 import (
 	"avalon/pkg/constants"
-	"avalon/pkg/dto"
 	"avalon/pkg/store"
 )
 
@@ -29,10 +28,8 @@ func (h *GameHandler) sendLlmPrompt(tx store.QueryRower, gameID int) error {
 		return err
 	}
 
-	response, err := h.Agent.Send(dto.Persona{ //TODO: передавать спикера на прямую
-		Self:      speaker.Name,
-		ModelName: speaker.Model,
-	},
+	response, err := h.Agent.Send(
+		*speaker,
 		prompt.SystemPrompt,
 		prompt.MessagePrompt,
 		events,

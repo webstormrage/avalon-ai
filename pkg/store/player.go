@@ -11,16 +11,21 @@ func CreatePlayer(
 	tx QueryRower,
 	p *dto.PlayerV2,
 ) error {
-
 	err := tx.QueryRowContext(ctx, `
-        INSERT INTO players (name, model, role, voice, mood, position, game_id)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        INSERT INTO players (
+            name, model, tts_model, role, voice, 
+            voice_temperature, voice_style, mood, position, game_id
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         RETURNING id
     `,
 		p.Name,
 		p.Model,
+		p.TtsModel,
 		p.Role,
 		p.Voice,
+		p.VoiceTemperature,
+		p.VoiceStyle,
 		p.Mood,
 		p.Position,
 		p.GameID,
@@ -35,28 +40,23 @@ func GetPlayerByPosition(
 	gameID int,
 	position int,
 ) (*dto.PlayerV2, error) {
-
 	var p dto.PlayerV2
 
 	err := db.QueryRowContext(ctx, `
         SELECT
-            id,
-            name,
-            model,
-            role,
-            voice,
-            mood,
-            position,
-            game_id
+            id, name, model, tts_model, role, voice, 
+            voice_temperature, voice_style, mood, position, game_id
         FROM players
-        WHERE game_id = $1
-          AND position = $2
+        WHERE game_id = $1 AND position = $2
     `, gameID, position).Scan(
 		&p.ID,
 		&p.Name,
 		&p.Model,
+		&p.TtsModel,
 		&p.Role,
 		&p.Voice,
+		&p.VoiceTemperature,
+		&p.VoiceStyle,
 		&p.Mood,
 		&p.Position,
 		&p.GameID,
@@ -64,7 +64,7 @@ func GetPlayerByPosition(
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, nil // или domain error
+			return nil, nil
 		}
 		return nil, err
 	}
@@ -78,20 +78,12 @@ func FindPlayersByNameLike(
 	gameID int,
 	namePart string,
 ) ([]dto.PlayerV2, error) {
-
 	rows, err := db.QueryContext(ctx, `
         SELECT
-            id,
-            name,
-            model,
-            role,
-            voice,
-            mood,
-            position,
-            game_id
+            id, name, model, tts_model, role, voice, 
+            voice_temperature, voice_style, mood, position, game_id
         FROM players
-        WHERE game_id = $1
-          AND name ILIKE '%' || $2 || '%'
+        WHERE game_id = $1 AND name ILIKE '%' || $2 || '%'
         ORDER BY position
     `, gameID, namePart)
 	if err != nil {
@@ -100,18 +92,11 @@ func FindPlayersByNameLike(
 	defer rows.Close()
 
 	var players []dto.PlayerV2
-
 	for rows.Next() {
 		var p dto.PlayerV2
 		if err := rows.Scan(
-			&p.ID,
-			&p.Name,
-			&p.Model,
-			&p.Role,
-			&p.Voice,
-			&p.Mood,
-			&p.Position,
-			&p.GameID,
+			&p.ID, &p.Name, &p.Model, &p.TtsModel, &p.Role, &p.Voice,
+			&p.VoiceTemperature, &p.VoiceStyle, &p.Mood, &p.Position, &p.GameID,
 		); err != nil {
 			return nil, err
 		}
@@ -127,20 +112,12 @@ func GetPlayersByRole(
 	gameID int,
 	role string,
 ) ([]dto.PlayerV2, error) {
-
 	rows, err := db.QueryContext(ctx, `
         SELECT
-            id,
-            name,
-            model,
-            role,
-            voice,
-            mood,
-            position,
-            game_id
+            id, name, model, tts_model, role, voice, 
+            voice_temperature, voice_style, mood, position, game_id
         FROM players
-        WHERE game_id = $1
-          AND role = $2
+        WHERE game_id = $1 AND role = $2
         ORDER BY position
     `, gameID, role)
 	if err != nil {
@@ -149,29 +126,18 @@ func GetPlayersByRole(
 	defer rows.Close()
 
 	players := make([]dto.PlayerV2, 0)
-
 	for rows.Next() {
 		var p dto.PlayerV2
 		if err := rows.Scan(
-			&p.ID,
-			&p.Name,
-			&p.Model,
-			&p.Role,
-			&p.Voice,
-			&p.Mood,
-			&p.Position,
-			&p.GameID,
+			&p.ID, &p.Name, &p.Model, &p.TtsModel, &p.Role, &p.Voice,
+			&p.VoiceTemperature, &p.VoiceStyle, &p.Mood, &p.Position, &p.GameID,
 		); err != nil {
 			return nil, err
 		}
 		players = append(players, p)
 	}
 
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return players, nil
+	return players, rows.Err()
 }
 
 func CountPlayersByGameID(
@@ -179,20 +145,11 @@ func CountPlayersByGameID(
 	db QueryRower,
 	gameID int,
 ) (int, error) {
-
 	var count int
-
 	err := db.QueryRowContext(ctx, `
-        SELECT COUNT(*)
-        FROM players
-        WHERE game_id = $1
+        SELECT COUNT(*) FROM players WHERE game_id = $1
     `, gameID).Scan(&count)
-
-	if err != nil {
-		return 0, err
-	}
-
-	return count, nil
+	return count, err
 }
 
 func GetPlayersByGameID(
@@ -200,17 +157,10 @@ func GetPlayersByGameID(
 	db QueryRower,
 	gameID int,
 ) ([]dto.PlayerV2, error) {
-
 	rows, err := db.QueryContext(ctx, `
         SELECT
-            id,
-            name,
-            model,
-            role,
-            voice,
-            mood,
-            position,
-            game_id
+            id, name, model, tts_model, role, voice, 
+            voice_temperature, voice_style, mood, position, game_id
         FROM players
         WHERE game_id = $1
         ORDER BY position ASC
@@ -221,27 +171,16 @@ func GetPlayersByGameID(
 	defer rows.Close()
 
 	players := make([]dto.PlayerV2, 0)
-
 	for rows.Next() {
 		var p dto.PlayerV2
 		if err := rows.Scan(
-			&p.ID,
-			&p.Name,
-			&p.Model,
-			&p.Role,
-			&p.Voice,
-			&p.Mood,
-			&p.Position,
-			&p.GameID,
+			&p.ID, &p.Name, &p.Model, &p.TtsModel, &p.Role, &p.Voice,
+			&p.VoiceTemperature, &p.VoiceStyle, &p.Mood, &p.Position, &p.GameID,
 		); err != nil {
 			return nil, err
 		}
 		players = append(players, p)
 	}
 
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return players, nil
+	return players, rows.Err()
 }

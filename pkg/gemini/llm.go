@@ -72,13 +72,13 @@ func (a *GeminiAgent) Close() error {
 }
 
 func (a *GeminiAgent) Send(
-	persona dto.Persona,
+	persona dto.PlayerV2,
 	systemPrompt string,
 	instruction string,
 	logs []*dto.Event,
 ) (string, error) {
 
-	model := a.client.GenerativeModel(persona.ModelName)
+	model := a.client.GenerativeModel(persona.Model)
 
 	if systemPrompt != "" {
 		model.SystemInstruction = &genai.Content{
@@ -94,7 +94,7 @@ func (a *GeminiAgent) Send(
 	model.TopK = i32(40)
 
 	chat := model.StartChat()
-	chat.History = getContents(logs, persona.Self)
+	chat.History = getContents(logs, persona.Name)
 
 	resp, err := chat.SendMessage(a.ctx, genai.Text(instruction))
 	if err != nil {
