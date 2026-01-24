@@ -1,12 +1,12 @@
 package dto
 
 type GameV2 struct {
-	ID              int
-	MissionPriority int
-	LeaderPosition  int
-	SpeakerPosition int
-	SkipsCount      int
-	Wins            int
-	Fails           int
-	GameState       string
+	ID              int    `json:"id"`
+	MissionPriority int    `json:"missionPriority"`
+	LeaderPosition  int    `json:"leaderPosition"`
+	SpeakerPosition int    `json:"speakerPosition"`
+	SkipsCount      int    `json:"skipsCount"`
+	Wins            int    `json:"wins"`
+	Fails           int    `json:"fails"`
+	GameState       string `json:"gameState"`
 }
