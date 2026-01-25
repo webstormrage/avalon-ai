@@ -20,15 +20,20 @@ func (h *GameHandler) getState(tx store.QueryRower, gameID int) (*GameState, err
 	if len(activePrompts) > 0 {
 		prompt = &activePrompts[0]
 	}
+
+	players, err := store.GetPlayersByGameID(h.Ctx, tx, gameID)
+
 	return &GameState{
-		Game:   *game,
-		Prompt: prompt,
+		Game:    *game,
+		Prompt:  prompt,
+		Players: players,
 	}, nil
 }
 
 type GameState struct {
-	Game   dto.GameV2  `json:"game"`
-	Prompt *dto.Prompt `json:"prompt,omitempty"`
+	Game    dto.GameV2     `json:"game"`
+	Prompt  *dto.Prompt    `json:"prompt,omitempty"`
+	Players []dto.PlayerV2 `json:"players,omitempty"`
 }
 
 func (h *GameHandler) handleNextState(gameID int) (*GameState, error) {
