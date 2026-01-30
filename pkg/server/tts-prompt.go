@@ -53,10 +53,9 @@ func (h *GameHandler) TtsPrompt(w http.ResponseWriter, r *http.Request) {
 	}
 
 	audio, err := h.TtsAgent.Send(
-		"gemini-2.5-flash-preview-tts", // TODO: store at player
-		speaker.Voice,
+		*speaker,
 		prompt.Response,
-		nil, //TODO: extract from model response
+		&speaker.VoiceStyle,
 	)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

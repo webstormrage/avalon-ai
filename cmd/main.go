@@ -16,13 +16,6 @@ import (
 	"time"
 )
 
-/*func main() {
-	ctx := context.Background()
-	_ = godotenv.Load()
-	apiKey := os.Getenv("GEMINI_API_KEY")
-	dataSource := os.Getenv("DATA_SOURCE_NAME")
-}*/
-
 func main() {
 	_ = godotenv.Load()
 	dsn := os.Getenv("DATA_SOURCE_NAME")
@@ -59,6 +52,7 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/games/new", handler.CreateGame)
+	mux.HandleFunc("/games/state", handler.GetGameState)
 	mux.HandleFunc("/games/next-tick", handler.NextTick)
 	mux.HandleFunc("/tts/generate", handler.TtsPrompt)
 

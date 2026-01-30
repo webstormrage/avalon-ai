@@ -36,9 +36,12 @@ CREATE TABLE IF NOT EXISTS players (
 
     name     TEXT NOT NULL,
     model    TEXT NOT NULL,
+    tts_model TEXT NOT NULL,
     role          TEXT NOT NULL,
     voice         TEXT,
-    mood TEXT,
+    voice_temperature FLOAT NOT NULL,
+    voice_style TEXT NOT NULL,
+    mood TEXT NOT NULL,
     position INT NOT NULL
 );
 
