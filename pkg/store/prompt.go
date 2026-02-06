@@ -120,3 +120,42 @@ func UpdatePrompt(
 
 	return nil
 }
+
+func GetPromptByID(
+	ctx context.Context,
+	db QueryRower,
+	id int,
+) (*dto.Prompt, error) {
+
+	var p dto.Prompt
+
+	err := db.QueryRowContext(ctx, `
+        SELECT
+            id,
+            game_id,
+            model,
+            system_prompt,
+            message_prompt,
+            response,
+            status
+        FROM prompts
+        WHERE id = $1
+    `, id).Scan(
+		&p.ID,
+		&p.GameID,
+		&p.Model,
+		&p.SystemPrompt,
+		&p.MessagePrompt,
+		&p.Response,
+		&p.Status,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, sql.ErrNoRows
+		}
+		return nil, fmt.Errorf("get prompt by id: %w", err)
+	}
+
+	return &p, nil
+}

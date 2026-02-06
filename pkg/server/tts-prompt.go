@@ -16,47 +16,46 @@ func (h *GameHandler) TtsPrompt(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	gameIDStr := r.URL.Query().Get("gameId")
-	if gameIDStr == "" {
-		http.Error(w, "missing gameId query param", http.StatusBadRequest)
+	idRaw := r.URL.Query().Get("id")
+	if idRaw == "" {
+		http.Error(w, "missing id query param", http.StatusBadRequest)
 		return
 	}
 
-	gameID, err := strconv.Atoi(gameIDStr)
+	id, err := strconv.Atoi(idRaw)
 	if err != nil {
-		http.Error(w, "invalid gameId", http.StatusBadRequest)
+		http.Error(w, "invalid id", http.StatusBadRequest)
 		return
 	}
 
-	game, err := store.GetGame(h.Ctx, h.DB, gameID)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	speaker, err := store.GetPlayerByPosition(h.Ctx, h.DB, gameID, game.SpeakerPosition)
+	prompt, err := store.GetPromptByID(h.Ctx, h.DB, id)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	pendingPrompts, err := store.GetPromptsNotCompletedByGameID(h.Ctx, h.DB, gameID)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	sIdRaw := r.URL.Query().Get("sid")
+	if sIdRaw == "" {
+		http.Error(w, "missing sId query param", http.StatusBadRequest)
 		return
 	}
-	prompt := pendingPrompts[0]
 
-	if len(pendingPrompts) == 0 || len(pendingPrompts[0].Response) == 0 {
-		http.Error(w, "No active llm response found", http.StatusBadRequest)
+	sId, err := strconv.Atoi(sIdRaw)
+	if err != nil {
+		http.Error(w, "invalid sId", http.StatusBadRequest)
+		return
+	}
+
+	speaker, err := store.GetPlayerByID(h.Ctx, h.DB, sId)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	audio, err := h.TtsAgent.Send(
-		"gemini-2.5-flash-preview-tts", // TODO: store at player
-		speaker.Voice,
+		*speaker,
 		prompt.Response,
-		nil, //TODO: extract from model response
+		&speaker.VoiceStyle,
 	)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -69,7 +68,7 @@ func (h *GameHandler) TtsPrompt(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fileName := fmt.Sprintf("[Game-%d] prompt-%d %s (%s).wav", gameID, prompt.ID, speaker.Name, speaker.Voice)
+	fileName := fmt.Sprintf("%d.mp3", prompt.ID)
 
 	fullPath := filepath.Join(h.MediaDir, fileName)
 
@@ -80,7 +79,7 @@ func (h *GameHandler) TtsPrompt(w http.ResponseWriter, r *http.Request) {
 
 	resp := map[string]string{
 		"status": "ok",
-		"path":   fullPath,
+		"name":   fileName,
 	}
 
 	w.Header().Set("Content-Type", "application/json")

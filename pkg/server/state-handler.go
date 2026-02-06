@@ -2,51 +2,57 @@ package server
 
 import (
 	"avalon/pkg/constants"
+	"avalon/pkg/dto"
 	"avalon/pkg/store"
-	"fmt"
 )
 
-func (h *GameHandler) getState(tx store.QueryRower, gameID int, showResponse bool) (string, error) {
+func (h *GameHandler) getState(tx store.QueryRower, gameID int) (*GameState, error) {
 	game, err := store.GetGame(h.Ctx, tx, gameID)
 
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	pendingPrompts, err := store.GetPromptsNotCompletedByGameID(h.Ctx, tx, gameID)
+	activePrompts, err := store.GetPromptsNotCompletedByGameID(h.Ctx, tx, gameID)
 	if err != nil {
-		return "", err
+		return nil, err
+	}
+	var prompt *dto.Prompt
+	if len(activePrompts) > 0 {
+		prompt = &activePrompts[0]
 	}
 
-	promptStatus := ""
-	if len(pendingPrompts) > 0 {
-		promptStatus = pendingPrompts[0].Status
-	}
-	state := fmt.Sprintf("[%d] %s %d:%d {%d} Leader#%d Speaker#%d %s", game.MissionPriority, game.GameState, game.Wins, game.Fails, game.SkipsCount, game.LeaderPosition, game.SpeakerPosition, promptStatus)
+	players, err := store.GetPlayersByGameID(h.Ctx, tx, gameID)
 
-	if promptStatus == constants.STATUS_HAS_RESPONSE && showResponse {
-		state += fmt.Sprintf("\n%s\n", pendingPrompts[0].Response)
-	}
-	return state, nil
+	return &GameState{
+		Game:    *game,
+		Prompt:  prompt,
+		Players: players,
+	}, nil
 }
 
-func (h *GameHandler) handleNextState(gameID int) (string, error) {
+type GameState struct {
+	Game    dto.GameV2     `json:"game"`
+	Prompt  *dto.Prompt    `json:"prompt,omitempty"`
+	Players []dto.PlayerV2 `json:"players,omitempty"`
+}
+
+func (h *GameHandler) handleNextState(gameID int) (*GameState, error) {
 	tx, err := h.DB.BeginTx(h.Ctx, nil)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer tx.Rollback()
 
 	game, err := store.GetGame(h.Ctx, tx, gameID)
 
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	var isLeader bool = game.SpeakerPosition == game.LeaderPosition
 
-	initialState, err := h.getState(tx, gameID, false)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	switch game.GameState {
 	case constants.STATE_DISCUSSION:
@@ -66,17 +72,14 @@ func (h *GameHandler) handleNextState(gameID int) (string, error) {
 	case constants.STATE_ASSASSIONATION:
 		err = h.handleAssassination(tx, gameID)
 	case constants.STATE_RED_VICTORY:
-		return initialState, nil
 	case constants.STATE_BLUE_VICTORY:
-		return initialState, nil
 	}
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-
-	nextState, err := h.getState(tx, gameID, true)
+	state, err := h.getState(tx, gameID)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	return fmt.Sprintf("\n%s ========> %s\n", initialState, nextState), tx.Commit()
+	return state, tx.Commit()
 }
