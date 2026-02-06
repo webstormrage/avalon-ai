@@ -184,3 +184,41 @@ func GetPlayersByGameID(
 
 	return players, rows.Err()
 }
+
+func GetPlayerByID(
+	ctx context.Context,
+	db QueryRower,
+	id int,
+) (*dto.PlayerV2, error) {
+
+	var p dto.PlayerV2
+
+	err := db.QueryRowContext(ctx, `
+        SELECT
+            id, name, model, tts_model, role, voice, 
+            voice_temperature, voice_style, mood, position, game_id
+        FROM players
+        WHERE id = $1
+    `, id).Scan(
+		&p.ID,
+		&p.Name,
+		&p.Model,
+		&p.TtsModel,
+		&p.Role,
+		&p.Voice,
+		&p.VoiceTemperature,
+		&p.VoiceStyle,
+		&p.Mood,
+		&p.Position,
+		&p.GameID,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &p, nil
+}

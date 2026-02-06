@@ -95,6 +95,7 @@ func main() {
 	mux.HandleFunc("/games/state", handler.GetGameState)
 	mux.HandleFunc("/games/next-tick", handler.NextTick)
 	mux.HandleFunc("/tts/generate", handler.TtsPrompt)
+	mux.HandleFunc("/tts/result", handler.TtsResult)
 
 	loggedMux := LoggingMiddleware(mux)
 
