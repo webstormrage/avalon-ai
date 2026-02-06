@@ -16,6 +16,46 @@ import (
 	"time"
 )
 
+type loggingResponseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func (lrw *loggingResponseWriter) WriteHeader(code int) {
+	lrw.statusCode = code
+	lrw.ResponseWriter.WriteHeader(code)
+}
+
+func LoggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+
+		log.Printf(
+			"➡️  %s %s from %s",
+			r.Method,
+			r.URL.Path,
+			r.RemoteAddr,
+		)
+
+		lrw := &loggingResponseWriter{
+			ResponseWriter: w,
+			statusCode:     http.StatusOK,
+		}
+
+		next.ServeHTTP(lrw, r)
+
+		duration := time.Since(start)
+
+		log.Printf(
+			"⬅️  %s %s | status=%d | duration=%s",
+			r.Method,
+			r.URL.Path,
+			lrw.statusCode,
+			duration,
+		)
+	})
+}
+
 func main() {
 	_ = godotenv.Load()
 	dsn := os.Getenv("DATA_SOURCE_NAME")
@@ -56,9 +96,11 @@ func main() {
 	mux.HandleFunc("/games/next-tick", handler.NextTick)
 	mux.HandleFunc("/tts/generate", handler.TtsPrompt)
 
+	loggedMux := LoggingMiddleware(mux)
+
 	server := &http.Server{
 		Addr:    ":8080",
-		Handler: mux,
+		Handler: loggedMux,
 		/*ReadTimeout:  5 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  30 * time.Second,*/

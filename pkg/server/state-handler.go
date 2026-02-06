@@ -72,13 +72,14 @@ func (h *GameHandler) handleNextState(gameID int) (*GameState, error) {
 	case constants.STATE_ASSASSIONATION:
 		err = h.handleAssassination(tx, gameID)
 	case constants.STATE_RED_VICTORY:
-		return h.getState(tx, gameID)
 	case constants.STATE_BLUE_VICTORY:
-		return h.getState(tx, gameID)
 	}
 	if err != nil {
 		return nil, err
 	}
-
-	return h.getState(tx, gameID)
+	state, err := h.getState(tx, gameID)
+	if err != nil {
+		return nil, err
+	}
+	return state, tx.Commit()
 }
