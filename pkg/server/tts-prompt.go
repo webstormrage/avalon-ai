@@ -68,7 +68,7 @@ func (h *GameHandler) TtsPrompt(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fileName := fmt.Sprintf("%d.wav", prompt.ID)
+	fileName := fmt.Sprintf("%d.mp3", prompt.ID)
 
 	fullPath := filepath.Join(h.MediaDir, fileName)
 

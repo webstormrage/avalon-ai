@@ -2,7 +2,6 @@ package server
 
 import (
 	"fmt"
-	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -22,7 +21,7 @@ func (h *GameHandler) TtsResult(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fileName := fmt.Sprintf("%d.wav", id)
+	fileName := fmt.Sprintf("%d.mp3", id)
 
 	fullPath := filepath.Join(h.MediaDir, fileName)
 
@@ -43,13 +42,7 @@ func (h *GameHandler) TtsResult(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Content-Type по расширению
-	contentType := mime.TypeByExtension(filepath.Ext(fileName))
-	if contentType == "" {
-		contentType = "application/octet-stream"
-	}
-
-	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Content-Type", "audio/mpeg")
 	w.Header().Set("Content-Length", strconv.FormatInt(stat.Size(), 10))
 	w.Header().Set("Content-Disposition", `inline; filename="`+stat.Name()+`"`)
 
