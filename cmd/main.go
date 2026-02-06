@@ -1,6 +1,7 @@
 package main
 
 import (
+	elevenLabs "avalon/pkg/eleven-labs"
 	"avalon/pkg/gemini"
 	"avalon/pkg/server"
 	"avalon/pkg/store"
@@ -61,6 +62,7 @@ func main() {
 	dsn := os.Getenv("DATA_SOURCE_NAME")
 	apiKey := os.Getenv("GEMINI_API_KEY")
 	mediaDir := os.Getenv("MEDIA_DIR")
+	elevenLabsKey := os.Getenv("ELEVEN_LABS_API_KEY")
 	if dsn == "" {
 		log.Fatal("DATABASE_URL is not set")
 	}
@@ -76,7 +78,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	ttsAgent := gemini.NewTtsAgent(apiKey)
+	// ttsAgent := gemini.NewTtsAgent(apiKey)
+	ttsAgent := elevenLabs.NewTtsAgent(elevenLabsKey)
 
 	if err := store.RunInitMigration(ctx, db); err != nil {
 		log.Fatal(err)
