@@ -16,7 +16,6 @@ type GameHandler struct {
 	DB       *sql.DB
 	Agent    dto.Agent
 	Ctx      context.Context
-	TtsAgent dto.TtsAgent
 	MediaDir string
 }
 

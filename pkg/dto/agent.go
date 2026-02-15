@@ -10,11 +10,3 @@ type Agent interface {
 
 	Close() error
 }
-
-type TtsAgent interface {
-	Send(
-		persona PlayerV2,
-		text string,
-		systemStyle *string,
-	) ([]byte, error)
-}

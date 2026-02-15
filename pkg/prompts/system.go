@@ -63,7 +63,6 @@ const systemPromptTpl = `
 В игре {{len .Players}} игроков за круглым столом
 Вот их имена в порядке обхода стола: {{formatPlayers .Players}}
 Вы отыгрываете персонажа - {{.Name}}
-Характер вашего персонажа - {{.Mood}}
 Каждый из игроков имеет 1 из ролей {{formatRoles .Roles}}
 Ваша роль - {{.Role}}
 {{formatRed .Players .Role}}
