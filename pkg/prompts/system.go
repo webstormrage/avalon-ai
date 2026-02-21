@@ -13,7 +13,6 @@ import (
 
 type SystemPromptProps struct {
 	Name        string
-	Mood        string
 	Players     []dto.PlayerV2
 	Roles       []presets.Role
 	Role        string

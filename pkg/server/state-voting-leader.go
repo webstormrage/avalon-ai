@@ -38,7 +38,6 @@ func (h *GameHandler) createLeaderVotingPrompt(tx store.QueryRower, gameID int) 
 		SystemPrompt: prompts.GetSystemPrompt(
 			prompts.SystemPromptProps{
 				Name:     leader.Name,
-				Mood:     leader.Mood,
 				Players:  players,
 				Roles:    presets.Roles5, // TODO: надо брать из базы
 				Role:     leader.Role,
