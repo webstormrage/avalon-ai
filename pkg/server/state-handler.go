@@ -95,11 +95,11 @@ func (h *GameHandler) handleNextState(gameID int) (*GameState, error) {
 		state.CurrentEvent = "BLUE_WON"
 	} else if state.Game.GameState == constants.STATE_RED_VICTORY && prevState != constants.STATE_RED_VICTORY {
 		state.CurrentEvent = "BLUE_LOST"
-	} else if prevState == constants.STATE_MISSION && game.Wins > prevWins {
+	} else if prevState == constants.STATE_MISSION && state.Game.Wins > prevWins {
 		state.CurrentEvent = "MISSION_COMPLETED"
-	} else if prevState == constants.STATE_MISSION && game.Fails > prevFails {
+	} else if prevState == constants.STATE_MISSION && state.Game.Fails > prevFails {
 		state.CurrentEvent = "MISSION_FAILED"
-	} else if prevState == constants.STATE_VOTING && game.SkipsCount > prevSkips {
+	} else if prevState == constants.STATE_VOTING && state.Game.SkipsCount > prevSkips {
 		state.CurrentEvent = "LEADER_SKIPPED"
 	}
 	if err != nil {
