@@ -36,7 +36,7 @@ type GameState struct {
 	Game         dto.GameV2     `json:"game"`
 	Prompt       *dto.Prompt    `json:"prompt,omitempty"`
 	Players      []dto.PlayerV2 `json:"players,omitempty"`
-	CurrentEvent string
+	CurrentEvent string         `json:"currentEvent,omitempty"`
 }
 
 func (h *GameHandler) handleNextState(gameID int) (*GameState, error) {
