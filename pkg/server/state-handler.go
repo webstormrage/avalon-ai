@@ -20,20 +20,23 @@ func (h *GameHandler) getState(tx store.QueryRower, gameID int) (*GameState, err
 	if len(activePrompts) > 0 {
 		prompt = &activePrompts[0]
 	}
+	event := "NO_EVENT"
 
 	players, err := store.GetPlayersByGameID(h.Ctx, tx, gameID)
 
 	return &GameState{
-		Game:    *game,
-		Prompt:  prompt,
-		Players: players,
+		Game:         *game,
+		Prompt:       prompt,
+		Players:      players,
+		CurrentEvent: event,
 	}, nil
 }
 
 type GameState struct {
-	Game    dto.GameV2     `json:"game"`
-	Prompt  *dto.Prompt    `json:"prompt,omitempty"`
-	Players []dto.PlayerV2 `json:"players,omitempty"`
+	Game         dto.GameV2     `json:"game"`
+	Prompt       *dto.Prompt    `json:"prompt,omitempty"`
+	Players      []dto.PlayerV2 `json:"players,omitempty"`
+	CurrentEvent string
 }
 
 func (h *GameHandler) handleNextState(gameID int) (*GameState, error) {
@@ -54,6 +57,10 @@ func (h *GameHandler) handleNextState(gameID int) (*GameState, error) {
 	if err != nil {
 		return nil, err
 	}
+	prevState := game.GameState
+	prevWins := game.Wins
+	prevFails := game.Fails
+	prevSkips := game.SkipsCount
 	switch game.GameState {
 	case constants.STATE_DISCUSSION:
 		if isLeader {
@@ -78,6 +85,23 @@ func (h *GameHandler) handleNextState(gameID int) (*GameState, error) {
 		return nil, err
 	}
 	state, err := h.getState(tx, gameID)
+	if state.Game.GameState == constants.STATE_VOTING && prevState != constants.STATE_VOTING {
+		state.CurrentEvent = "VOTING_STARTED"
+	} else if state.Game.GameState == constants.STATE_MISSION && prevState != constants.STATE_MISSION {
+		state.CurrentEvent = "MISSION_STARTED"
+	} else if state.Game.GameState == constants.STATE_ASSASSIONATION && prevState != constants.STATE_ASSASSIONATION {
+		state.CurrentEvent = "ASSASSION_STARTED"
+	} else if state.Game.GameState == constants.STATE_BLUE_VICTORY && prevState != constants.STATE_BLUE_VICTORY {
+		state.CurrentEvent = "BLUE_WON"
+	} else if state.Game.GameState == constants.STATE_RED_VICTORY && prevState != constants.STATE_RED_VICTORY {
+		state.CurrentEvent = "BLUE_LOST"
+	} else if prevState == constants.STATE_MISSION && game.Wins > prevWins {
+		state.CurrentEvent = "MISSION_COMPLETED"
+	} else if prevState == constants.STATE_MISSION && game.Fails > prevFails {
+		state.CurrentEvent = "MISSION_FAILED"
+	} else if prevState == constants.STATE_VOTING && game.SkipsCount > prevSkips {
+		state.CurrentEvent = "LEADER_SKIPPED"
+	}
 	if err != nil {
 		return nil, err
 	}
