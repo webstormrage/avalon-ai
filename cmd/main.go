@@ -1,7 +1,6 @@
 package main
 
 import (
-	elevenLabs "avalon/pkg/eleven-labs"
 	"avalon/pkg/gemini"
 	"avalon/pkg/server"
 	"avalon/pkg/store"
@@ -62,7 +61,6 @@ func main() {
 	dsn := os.Getenv("DATA_SOURCE_NAME")
 	apiKey := os.Getenv("GEMINI_API_KEY")
 	mediaDir := os.Getenv("MEDIA_DIR")
-	elevenLabsKey := os.Getenv("ELEVEN_LABS_API_KEY")
 	if dsn == "" {
 		log.Fatal("DATABASE_URL is not set")
 	}
@@ -78,8 +76,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	// ttsAgent := gemini.NewTtsAgent(apiKey)
-	ttsAgent := elevenLabs.NewTtsAgent(elevenLabsKey)
 
 	if err := store.RunInitMigration(ctx, db); err != nil {
 		log.Fatal(err)
@@ -89,7 +85,6 @@ func main() {
 		DB:       db,
 		Agent:    agent,
 		Ctx:      ctx,
-		TtsAgent: ttsAgent,
 		MediaDir: mediaDir,
 	}
 
@@ -97,8 +92,6 @@ func main() {
 	mux.HandleFunc("/games/new", handler.CreateGame)
 	mux.HandleFunc("/games/state", handler.GetGameState)
 	mux.HandleFunc("/games/next-tick", handler.NextTick)
-	mux.HandleFunc("/tts/generate", handler.TtsPrompt)
-	mux.HandleFunc("/tts/result", handler.TtsResult)
 
 	loggedMux := LoggingMiddleware(mux)
 

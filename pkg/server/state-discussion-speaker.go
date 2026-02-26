@@ -45,7 +45,6 @@ func (h *GameHandler) createSpeakerDiscussionPrompt(tx store.QueryRower, gameID 
 		SystemPrompt: prompts.GetSystemPrompt(
 			prompts.SystemPromptProps{
 				Name:     speaker.Name,
-				Mood:     speaker.Mood,
 				Players:  players,
 				Roles:    presets.Roles5, // TODO: надо брать из системных events
 				Role:     speaker.Role,

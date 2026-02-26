@@ -57,7 +57,6 @@ func (h *GameHandler) createMissionPrompt(tx store.QueryRower, gameID int) error
 		SystemPrompt: prompts.GetSystemPrompt(
 			prompts.SystemPromptProps{
 				Name:     speaker.Name,
-				Mood:     speaker.Mood,
 				Players:  players,
 				Roles:    presets.Roles5, // TODO: надо брать из системных events
 				Role:     speaker.Role,
