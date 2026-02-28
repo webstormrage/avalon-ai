@@ -80,7 +80,7 @@ func NewAgent(
 	return &OpenRouterAgent{
 		ctx: ctx,
 		client: &http.Client{
-			Timeout: 90 * time.Second,
+			Timeout: 10 * time.Minute,
 		},
 		baseURL: strings.TrimRight(baseURL, "/"),
 	}, nil
