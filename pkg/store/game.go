@@ -23,16 +23,18 @@ func CreateGame(
         INSERT INTO games (
             mission_priority,
             leader_position,
+            speaker_position,
             skips_count,               
             wins,
             fails,
             game_state               
         )
-        VALUES ($1, $2, $3, $4, $5, $6)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         RETURNING id
     `,
 		game.MissionPriority,
 		game.LeaderPosition,
+		game.SpeakerPosition,
 		game.SkipsCount,
 		game.Wins,
 		game.Fails,

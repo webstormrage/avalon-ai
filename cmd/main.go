@@ -1,7 +1,7 @@
 package main
 
 import (
-	"avalon/pkg/gemini"
+	"avalon/pkg/operouter"
 	"avalon/pkg/server"
 	"avalon/pkg/store"
 	"context"
@@ -59,8 +59,9 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 func main() {
 	_ = godotenv.Load()
 	dsn := os.Getenv("DATA_SOURCE_NAME")
-	apiKey := os.Getenv("GEMINI_API_KEY")
+	// apiKey := os.Getenv("GEMINI_API_KEY")
 	mediaDir := os.Getenv("MEDIA_DIR")
+	openRouterUri := os.Getenv("OPEN_ROUTER_URI")
 	if dsn == "" {
 		log.Fatal("DATABASE_URL is not set")
 	}
@@ -72,7 +73,7 @@ func main() {
 	defer db.Close()
 
 	ctx := context.Background()
-	agent, err := gemini.NewAgent(ctx, apiKey)
+	agent, err := operouter.NewAgent(ctx, openRouterUri)
 	if err != nil {
 		log.Fatal(err)
 	}
