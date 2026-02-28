@@ -17,7 +17,7 @@ logging.basicConfig(
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".env"))
 
 OPENROUTER_BASE_URL = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
-OPENROUTER_TIMEOUT = float(os.getenv("OPENROUTER_TIMEOUT", "60"))
+OPENROUTER_TIMEOUT = float(os.getenv("OPENROUTER_TIMEOUT", "600"))
 
 app = FastAPI(title="OpenRouter Proxy Service")
 
