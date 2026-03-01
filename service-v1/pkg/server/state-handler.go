@@ -1,9 +1,9 @@
 package server
 
 import (
-	"avalon/pkg/constants"
-	"avalon/pkg/dto"
-	"avalon/pkg/store"
+	"avalon/service-v1/constants"
+	"avalon/service-v1/dto"
+	"avalon/service-v1/store"
 )
 
 func (h *GameHandler) getState(tx store.QueryRower, gameID int) (*GameState, error) {

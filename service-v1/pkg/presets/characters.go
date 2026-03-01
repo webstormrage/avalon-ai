@@ -1,7 +1,7 @@
 package presets
 
 import (
-	"avalon/pkg/dto"
+	"avalon/service-v1/dto"
 )
 
 func GetPlayersV2() []*dto.PlayerV2 {

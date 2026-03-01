@@ -1,9 +1,9 @@
 package main
 
 import (
-	"avalon/pkg/operouter"
-	"avalon/pkg/server"
-	"avalon/pkg/store"
+	"avalon/service-v1/operouter"
+	"avalon/service-v1/server"
+	"avalon/service-v1/store"
 	"context"
 	"database/sql"
 	"github.com/joho/godotenv"

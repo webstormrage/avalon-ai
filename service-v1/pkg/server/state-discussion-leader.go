@@ -1,16 +1,15 @@
 package server
 
 import (
-	"avalon/pkg/constants"
-	"avalon/pkg/dto"
-	"avalon/pkg/presets"
-	"avalon/pkg/prompts"
-	"avalon/pkg/store"
-	"strconv"
+	"avalon/service-v1/constants"
+	"avalon/service-v1/dto"
+	"avalon/service-v1/presets"
+	"avalon/service-v1/prompts"
+	"avalon/service-v1/store"
 	"strings"
 )
 
-func (h *GameHandler) createLeaderVotingPrompt(tx store.QueryRower, gameID int) error {
+func (h *GameHandler) createLeaderDiscussionPrompt(tx store.QueryRower, gameID int) error {
 	game, err := store.GetGame(h.Ctx, tx, gameID)
 	if err != nil {
 		return err
@@ -44,7 +43,7 @@ func (h *GameHandler) createLeaderVotingPrompt(tx store.QueryRower, gameID int) 
 				Missions: missions,
 			},
 		),
-		MessagePrompt: prompts.RenderStatementPrompt(prompts.StatementProps{
+		MessagePrompt: prompts.RenderProposalPrompt(prompts.StatementProps{
 			Resume: prompts.ResumeProps{
 				Wins:       game.Wins,
 				Fails:      game.Fails,
@@ -53,9 +52,10 @@ func (h *GameHandler) createLeaderVotingPrompt(tx store.QueryRower, gameID int) 
 			Mission: *mission,
 		}),
 	})
+
 }
 
-func (h *GameHandler) applyLeaderVotingPrompt(tx store.QueryRower, gameID int) error {
+func (h *GameHandler) applyLeaderDiscussionPrompt(tx store.QueryRower, gameID int) error {
 	pendingPrompts, err := store.GetPromptsNotCompletedByGameID(h.Ctx, tx, gameID)
 	if err != nil {
 		return err
@@ -80,29 +80,9 @@ func (h *GameHandler) applyLeaderVotingPrompt(tx store.QueryRower, gameID int) e
 	squad, _ := prompts.ExtractTeam(prompt.Response)
 	err = store.CreateEvent(h.Ctx, tx, &dto.Event{
 		GameID:  game.ID,
-		Type:    constants.EVENT_SQUAD_STATEMENT,
+		Type:    constants.EVENT_SQUAD_DECLARATION,
 		Source:  leader.Name,
 		Content: strings.Join(squad, ", "),
-	})
-	if err != nil {
-		return err
-	}
-
-	roster := []string{}
-	for _, name := range squad {
-		players, err := store.FindPlayersByNameLike(h.Ctx, tx, gameID, name)
-		if err != nil {
-			return err
-		}
-		roster = append(roster, strconv.Itoa(players[0].Position))
-	}
-
-	err = store.CreateEvent(h.Ctx, tx, &dto.Event{
-		GameID:  game.ID,
-		Type:    constants.EVENT_SQUAD_ROSTER,
-		Source:  leader.Name,
-		Content: strings.Join(roster, ", "),
-		Hidden:  true,
 	})
 	if err != nil {
 		return err
@@ -129,19 +109,19 @@ func (h *GameHandler) applyLeaderVotingPrompt(tx store.QueryRower, gameID int) e
 	return store.UpdateGame(h.Ctx, tx, game)
 }
 
-func (h *GameHandler) handleLeaderVoting(tx store.QueryRower, gameID int) error {
+func (h *GameHandler) handleLeaderDiscussion(tx store.QueryRower, gameID int) error {
 	pendingPrompts, err := store.GetPromptsNotCompletedByGameID(h.Ctx, tx, gameID)
 	if err != nil {
 		return err
 	}
 	if len(pendingPrompts) == 0 {
-		err = h.createLeaderVotingPrompt(tx, gameID)
+		err = h.createLeaderDiscussionPrompt(tx, gameID)
 	} else {
 		switch pendingPrompts[0].Status {
 		case constants.STATUS_NOT_STARTED:
 			err = h.sendLlmPrompt(tx, gameID)
 		case constants.STATUS_HAS_RESPONSE:
-			err = h.applyLeaderVotingPrompt(tx, gameID)
+			err = h.applyLeaderDiscussionPrompt(tx, gameID)
 		}
 	}
 	return err

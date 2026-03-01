@@ -1,6 +1,6 @@
 package presets
 
-import "avalon/pkg/dto"
+import "avalon/service-v1/dto"
 
 func GetMissionsV2() []*dto.MissionV2 {
 	return []*dto.MissionV2{

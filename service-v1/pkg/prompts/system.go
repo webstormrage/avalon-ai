@@ -1,9 +1,9 @@
 package prompts
 
 import (
-	"avalon/pkg/constants"
-	"avalon/pkg/dto"
-	"avalon/pkg/presets"
+	"avalon/service-v1/constants"
+	"avalon/service-v1/dto"
+	"avalon/service-v1/presets"
 	"bytes"
 	"fmt"
 	"strconv"

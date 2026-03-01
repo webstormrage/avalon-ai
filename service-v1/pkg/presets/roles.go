@@ -1,7 +1,7 @@
 package presets
 
 import (
-	"avalon/pkg/constants"
+	"avalon/service-v1/constants"
 	"math/rand"
 	"time"
 )

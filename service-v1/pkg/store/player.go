@@ -1,7 +1,7 @@
 package store
 
 import (
-	"avalon/pkg/dto"
+	"avalon/service-v1/dto"
 	"context"
 	"database/sql"
 )

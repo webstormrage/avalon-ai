@@ -1,7 +1,7 @@
 package prompts
 
 import (
-	"avalon/pkg/dto"
+	"avalon/service-v1/dto"
 	"bytes"
 	"regexp"
 	"strings"

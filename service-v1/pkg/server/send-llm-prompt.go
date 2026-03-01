@@ -1,8 +1,8 @@
 package server
 
 import (
-	"avalon/pkg/constants"
-	"avalon/pkg/store"
+	"avalon/service-v1/constants"
+	"avalon/service-v1/store"
 )
 
 func (h *GameHandler) sendLlmPrompt(tx store.QueryRower, gameID int) error {

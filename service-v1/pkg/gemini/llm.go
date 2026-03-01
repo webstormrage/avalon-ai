@@ -1,7 +1,7 @@
 package gemini
 
 import (
-	"avalon/pkg/dto"
+	"avalon/service-v1/dto"
 	"context"
 	"fmt"
 	"github.com/google/generative-ai-go/genai"

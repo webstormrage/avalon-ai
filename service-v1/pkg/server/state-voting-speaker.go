@@ -1,11 +1,11 @@
 package server
 
 import (
-	"avalon/pkg/constants"
-	"avalon/pkg/dto"
-	"avalon/pkg/presets"
-	"avalon/pkg/prompts"
-	"avalon/pkg/store"
+	"avalon/service-v1/constants"
+	"avalon/service-v1/dto"
+	"avalon/service-v1/presets"
+	"avalon/service-v1/prompts"
+	"avalon/service-v1/store"
 	"fmt"
 )
 
