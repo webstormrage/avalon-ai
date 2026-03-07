@@ -68,7 +68,7 @@ func createMissionPrompt(h *Handler, tx store.QueryRower, gameID int) error {
 				Missions: missions,
 			},
 		),
-		MessagePrompt: prompts.RenderCompletionPrompt(prompts.VoteProps{
+		MessagePrompt: prompts.RenderMissionActionPrompt(prompts.VoteProps{
 			Mission: *mission,
 			Leader:  leaderName,
 			Team:    squadEvent.Content,

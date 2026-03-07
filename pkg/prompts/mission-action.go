@@ -7,7 +7,7 @@ import (
 	"text/template"
 )
 
-const completionPromptTpl = `
+const missionActionPromptTpl = `
 Лидер ({{.Leader}}) выставил вас в свой финальный состав на {{.Mission.Name}},
 (допустимое количество провалов {{.Mission.MaxFails}})
 Предлагаемый состав - {{.Team}}
@@ -38,13 +38,13 @@ func ExtractMissionResult(text string) string {
 	}
 }
 
-func RenderCompletionPrompt(view VoteProps) string {
+func RenderMissionActionPrompt(view VoteProps) string {
 	tpl := template.Must(
-		template.New("completionPrompt").
+		template.New("missionActionPrompt").
 			Funcs(template.FuncMap{
 				"add": func(a, b int) int { return a + b },
 			}).
-			Parse(completionPromptTpl),
+			Parse(missionActionPromptTpl),
 	)
 
 	var buf bytes.Buffer

@@ -6,7 +6,7 @@ import (
 	"text/template"
 )
 
-const proposalPromptTpl = `
+const proposeSquadPromptTpl = `
 Вы лидер.
 {{template "resumePrompt" .Resume}}
 
@@ -20,15 +20,15 @@ const proposalPromptTpl = `
 Выставить: имена игроков через запятую
 `
 
-func RenderProposalPrompt(view StatementProps) string {
-	tpl, err := template.New("proposalPrompt").Parse(`
+func RenderProposeSquadPrompt(view StatementProps) string {
+	tpl, err := template.New("proposeSquadPrompt").Parse(`
 {{define "resumePrompt"}}` + resumePromptTpl + `{{end}}
-{{define "proposalPrompt"}}` + proposalPromptTpl + `{{end}}
+{{define "proposeSquadPrompt"}}` + proposeSquadPromptTpl + `{{end}}
 `)
 	tpl = template.Must(tpl, err)
 
 	var buf bytes.Buffer
-	if err := tpl.ExecuteTemplate(&buf, "proposalPrompt", view); err != nil {
+	if err := tpl.ExecuteTemplate(&buf, "proposeSquadPrompt", view); err != nil {
 		panic(err)
 	}
 

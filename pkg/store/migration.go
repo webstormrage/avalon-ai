@@ -75,7 +75,6 @@ CREATE INDEX IF NOT EXISTS idx_players_game_id  ON players(game_id);
 CREATE INDEX IF NOT EXISTS idx_missions_priority ON missions(priority);
 CREATE INDEX IF NOT EXISTS idx_prompts_game_id ON prompts(game_id);
 CREATE INDEX IF NOT EXISTS idx_events_game_id ON events(game_id);
-CREATE INDEX IF NOT EXISTS idx_events_player_id ON events(player_id);
 
 ALTER TABLE events ADD COLUMN IF NOT EXISTS player_id BIGINT;
 ALTER TABLE events ADD COLUMN IF NOT EXISTS hidden BOOLEAN NOT NULL DEFAULT FALSE;
@@ -100,6 +99,8 @@ BEGIN
 END $$;
 
 ALTER TABLE events DROP COLUMN IF EXISTS source;
+
+CREATE INDEX IF NOT EXISTS idx_events_player_id ON events(player_id);
 `
 
 func RunInitMigration(

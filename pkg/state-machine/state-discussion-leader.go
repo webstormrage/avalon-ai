@@ -43,7 +43,7 @@ func createLeaderDiscussionPrompt(h *Handler, tx store.QueryRower, gameID int) e
 				Missions: missions,
 			},
 		),
-		MessagePrompt: prompts.RenderProposalPrompt(prompts.StatementProps{
+		MessagePrompt: prompts.RenderProposeSquadPrompt(prompts.StatementProps{
 			Resume: prompts.ResumeProps{
 				Wins:       game.Wins,
 				Fails:      game.Fails,

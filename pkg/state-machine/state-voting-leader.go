@@ -44,7 +44,7 @@ func createLeaderVotingPrompt(h *Handler, tx store.QueryRower, gameID int) error
 				Missions: missions,
 			},
 		),
-		MessagePrompt: prompts.RenderStatementPrompt(prompts.StatementProps{
+		MessagePrompt: prompts.RenderAnnounceSquadPrompt(prompts.StatementProps{
 			Resume: prompts.ResumeProps{
 				Wins:       game.Wins,
 				Fails:      game.Fails,

@@ -14,7 +14,7 @@ type VoteProps struct {
 	Leader  string
 }
 
-const votePromptTpl = `
+const voteSquadPromptTpl = `
 Лидер ({{.Leader}}) предложил состав на {{.Mission.Name}},
 (допустимое количество провалов {{.Mission.MaxFails}})
 Предлагаемый состав - {{.Team}}
@@ -47,13 +47,13 @@ func ExtractVote(text string) string {
 	}
 }
 
-func RenderVotePrompt(view VoteProps) string {
+func RenderVoteSquadPrompt(view VoteProps) string {
 	tpl := template.Must(
-		template.New("votePrompt").
+		template.New("voteSquadPrompt").
 			Funcs(template.FuncMap{
 				"add": func(a, b int) int { return a + b },
 			}).
-			Parse(votePromptTpl),
+			Parse(voteSquadPromptTpl),
 	)
 
 	var buf bytes.Buffer

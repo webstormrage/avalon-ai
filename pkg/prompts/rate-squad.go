@@ -6,7 +6,7 @@ import (
 	"text/template"
 )
 
-const commentPromptTpl = `
+const rateSquadPromptTpl = `
 Лидер ({{.Leader}}) предложил состав на {{.Mission.Name}},
 (допустимое количество провалов {{.Mission.MaxFails}})
 Предлагаемый состав - {{.Team}}
@@ -20,13 +20,13 @@ const commentPromptTpl = `
 Поддерживаю: имена игроков через запятую
 `
 
-func RenderCommentPrompt(view VoteProps) string {
+func RenderRateSquadPrompt(view VoteProps) string {
 	tpl := template.Must(
-		template.New("commentPrompt").
+		template.New("rateSquadPrompt").
 			Funcs(template.FuncMap{
 				"add": func(a, b int) int { return a + b },
 			}).
-			Parse(commentPromptTpl),
+			Parse(rateSquadPromptTpl),
 	)
 
 	var buf bytes.Buffer

@@ -13,7 +13,7 @@ type StatementProps struct {
 	Mission dto.MissionV2
 }
 
-const statementPromptTpl = `
+const announceSquadPromptTpl = `
 Вы лидер.
 {{template "resumePrompt" .Resume}}
 
@@ -53,20 +53,20 @@ func ExtractTeam(text string) ([]string, bool) {
 	return players, true
 }
 
-func RenderStatementPrompt(view StatementProps) string {
+func RenderAnnounceSquadPrompt(view StatementProps) string {
 	tpl := template.Must(
-		template.New("statementPrompt").
+		template.New("announceSquadPrompt").
 			Funcs(template.FuncMap{
 				"add": func(a, b int) int { return a + b },
 			}).
 			Parse(`
 {{define "resumePrompt"}}` + resumePromptTpl + `{{end}}
-{{define "statementPrompt"}}` + statementPromptTpl + `{{end}}
+{{define "announceSquadPrompt"}}` + announceSquadPromptTpl + `{{end}}
 `),
 	)
 
 	var buf bytes.Buffer
-	if err := tpl.ExecuteTemplate(&buf, "statementPrompt", view); err != nil {
+	if err := tpl.ExecuteTemplate(&buf, "announceSquadPrompt", view); err != nil {
 		panic(err)
 	}
 

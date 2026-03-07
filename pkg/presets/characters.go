@@ -1,6 +1,7 @@
 package presets
 
 import (
+	"avalon/pkg/constants"
 	"avalon/pkg/dto"
 )
 
@@ -41,6 +42,13 @@ func GetPlayersV2() []*dto.PlayerV2 {
 			Position:      5,
 			CharacterType: "claude",
 			Model:         "anthropic/claude-opus-4.5",
+		},
+		&dto.PlayerV2{
+			Name:          "Супер пользователь",
+			Role:          constants.ROLE_GAME_MASTER,
+			Position:      0,
+			CharacterType: "",
+			Model:         "",
 		},
 	}
 }

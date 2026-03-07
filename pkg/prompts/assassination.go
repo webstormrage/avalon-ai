@@ -5,14 +5,14 @@ import (
 	"strings"
 )
 
-const AssassinPrompt = `
+const AssassinationPrompt = `
 Команда 'Синие' близка к победе. Они выполнили успешно 3 миссии. Но у 'Красных есть шанс победить
 Назовите имя игрока за столом, который по вашему мнению имеет роль 'Мерлин'
 Если вы угадаете, то победа будет за 'Красными'
 Последнее предложение вашей речи должно быть Выбрать: имя игрока
 `
 
-func ExtractPlayerName(text string) (string, bool) {
+func ExtractAssassinationTarget(text string) (string, bool) {
 	re := regexp.MustCompile(`(?i)Выбрать:\s*(.+)\s*$`)
 	m := re.FindStringSubmatch(text)
 

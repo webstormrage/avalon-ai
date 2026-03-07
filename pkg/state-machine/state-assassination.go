@@ -48,7 +48,7 @@ func createAssassinationPrompt(h *Handler, tx store.QueryRower, gameID int) erro
 				Missions: missions,
 			},
 		),
-		MessagePrompt: prompts.AssassinPrompt,
+		MessagePrompt: prompts.AssassinationPrompt,
 	})
 }
 
@@ -75,7 +75,7 @@ func applyAssassinationPrompt(h *Handler, tx store.QueryRower, gameID int) error
 		return err
 	}
 
-	targetName, _ := prompts.ExtractPlayerName(prompt.Response)
+	targetName, _ := prompts.ExtractAssassinationTarget(prompt.Response)
 
 	targets, err := store.FindPlayersByNameLike(h.Ctx, tx, gameID, targetName)
 

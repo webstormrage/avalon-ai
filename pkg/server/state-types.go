@@ -6,6 +6,7 @@ type GameState struct {
 	Game           dto.GameV2      `json:"game"`
 	Prompt         *dto.Prompt     `json:"prompt,omitempty"`
 	Players        []dto.PlayerV2  `json:"players,omitempty"`
+	YourPosition   int             `json:"yourPosition,omitempty"`
 	CurrentEvent   string          `json:"currentEvent,omitempty"`
 	RequiredAction *RequiredAction `json:"requiredAction,omitempty"`
 }

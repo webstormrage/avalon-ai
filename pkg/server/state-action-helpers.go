@@ -374,7 +374,7 @@ func applyAssassinationPrompt(h *GameHandler, tx store.QueryRower, gameID int) e
 	if err != nil {
 		return err
 	}
-	targetName, _ := prompts.ExtractPlayerName(prompt.Response)
+	targetName, _ := prompts.ExtractAssassinationTarget(prompt.Response)
 	targets, err := store.FindPlayersByNameLike(h.Ctx, tx, gameID, targetName)
 	if err != nil {
 		return err

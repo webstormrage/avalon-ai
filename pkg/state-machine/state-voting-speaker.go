@@ -53,7 +53,7 @@ func createSpeakerVotingPrompt(h *Handler, tx store.QueryRower, gameID int) erro
 				Missions: missions,
 			},
 		),
-		MessagePrompt: prompts.RenderVotePrompt(prompts.VoteProps{
+		MessagePrompt: prompts.RenderVoteSquadPrompt(prompts.VoteProps{
 			Mission: *mission,
 			Leader:  leader.Name,
 			Team:    squadEvent.Content,

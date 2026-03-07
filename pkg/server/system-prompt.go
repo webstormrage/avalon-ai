@@ -1,11 +1,13 @@
 package server
 
 import (
+	"avalon/pkg/constants"
 	"avalon/pkg/presets"
 	"avalon/pkg/prompts"
 	"avalon/pkg/store"
 	"encoding/json"
 	"net/http"
+	"strconv"
 )
 
 type renderSystemPromptRequest struct {
@@ -15,6 +17,7 @@ type renderSystemPromptRequest struct {
 
 type renderSystemPromptResponse struct {
 	SystemPrompt string `json:"systemPrompt"`
+	ActionPrompt string `json:"actionPrompt,omitempty"`
 }
 
 func (h *GameHandler) RenderSystemPrompt(w http.ResponseWriter, r *http.Request) {
@@ -51,6 +54,7 @@ func (h *GameHandler) RenderSystemPrompt(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	requiredAction := req.GameState.RequiredAction
 	FilterStateByRequester(&req.GameState, *player)
 
 	missions, err := store.GetMissionsByGameID(h.Ctx, h.DB, req.GameState.Game.ID)
@@ -66,13 +70,135 @@ func (h *GameHandler) RenderSystemPrompt(w http.ResponseWriter, r *http.Request)
 		Role:     player.Role,
 		Missions: missions,
 	})
+	actionPrompt, err := h.renderActionPrompt(req.GameState.Game.ID, requiredAction)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(renderSystemPromptResponse{
 		SystemPrompt: systemPrompt,
+		ActionPrompt: actionPrompt,
 	}); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+}
+
+func (h *GameHandler) renderActionPrompt(gameID int, requiredAction *RequiredAction) (string, error) {
+	if requiredAction == nil || requiredAction.Name == "" {
+		return "", nil
+	}
+
+	game, err := store.GetGame(h.Ctx, h.DB, gameID)
+	if err != nil {
+		return "", err
+	}
+	mission, err := store.GetMissionByPriority(h.Ctx, h.DB, gameID, game.MissionPriority)
+	if err != nil {
+		return "", err
+	}
+	leader, err := store.GetPlayerByPosition(h.Ctx, h.DB, gameID, game.LeaderPosition)
+	if err != nil {
+		return "", err
+	}
+
+	switch requiredAction.Name {
+	case "propose_squad":
+		return prompts.RenderProposeSquadPrompt(prompts.StatementProps{
+			Resume: prompts.ResumeProps{
+				Wins:       game.Wins,
+				Fails:      game.Fails,
+				SkipsCount: game.SkipsCount,
+			},
+			Mission: *mission,
+		}), nil
+	case "rate_squad":
+		team := ""
+		squadEvent, err := store.GetLastEventByGameIDAndType(h.Ctx, h.DB, gameID, constants.EVENT_SQUAD_DECLARATION)
+		if err != nil {
+			return "", err
+		}
+		if squadEvent != nil {
+			team = squadEvent.Content
+		}
+		return prompts.RenderRateSquadPrompt(prompts.VoteProps{
+			Mission: *mission,
+			Leader:  leader.Name,
+			Team:    team,
+		}), nil
+	case "announce_squad":
+		return prompts.RenderAnnounceSquadPrompt(prompts.StatementProps{
+			Resume: prompts.ResumeProps{
+				Wins:       game.Wins,
+				Fails:      game.Fails,
+				SkipsCount: game.SkipsCount,
+			},
+			Mission: *mission,
+		}), nil
+	case "vote_squad":
+		team := ""
+		squadEvent, err := store.GetLastEventByGameIDAndType(h.Ctx, h.DB, gameID, constants.EVENT_SQUAD_STATEMENT)
+		if err != nil {
+			return "", err
+		}
+		if squadEvent != nil {
+			team = squadEvent.Content
+		}
+		return prompts.RenderVoteSquadPrompt(prompts.VoteProps{
+			Mission: *mission,
+			Leader:  leader.Name,
+			Team:    team,
+		}), nil
+	case "mission_action":
+		squadEvent, err := store.GetLastEventByGameIDAndType(h.Ctx, h.DB, gameID, constants.EVENT_SQUAD_STATEMENT)
+		if err != nil {
+			return "", err
+		}
+		leaderName := leader.Name
+		team := ""
+		if squadEvent != nil {
+			team = squadEvent.Content
+			if squadEvent.PlayerName != "" {
+				leaderName = squadEvent.PlayerName
+			} else if squadEvent.PlayerID != 0 {
+				leaderName = "player#" + strconv.Itoa(squadEvent.PlayerID)
+			}
+		}
+		return prompts.RenderMissionActionPrompt(prompts.VoteProps{
+			Mission: *mission,
+			Leader:  leaderName,
+			Team:    team,
+		}), nil
+	case "propose_assassination":
+		return "Предложите публично цель для убийства. Последнее предложение должно быть в формате:\nВыставить: имя игрока\n", nil
+	case "rate_assassination":
+		speaker, err := store.GetPlayerByPosition(h.Ctx, h.DB, gameID, game.SpeakerPosition)
+		if err != nil {
+			return "", err
+		}
+		target := ""
+		lastSpeech, err := store.GetLastEventByGameIDAndType(h.Ctx, h.DB, gameID, constants.EVENT_PLAYER_SPEECH)
+		if err != nil {
+			return "", err
+		}
+		if lastSpeech != nil {
+			if extracted, ok := prompts.ExtractAssassinationTarget(lastSpeech.Content); ok {
+				target = extracted
+			}
+		}
+		if target == "" {
+			target = "не указана"
+		}
+		return prompts.RenderRateAssassinationPrompt(prompts.RateAssassinationProps{
+			Speaker: speaker.Name,
+			Target:  target,
+		}), nil
+	case "announce_assassination":
+		return prompts.AssassinationPrompt, nil
+	default:
+		return "", nil
 	}
 }

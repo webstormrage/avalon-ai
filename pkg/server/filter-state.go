@@ -35,9 +35,16 @@ func FilterStateByRequester(state *GameState, requester dto.PlayerV2) {
 		}
 	}
 
+	filteredPlayers := make([]dto.PlayerV2, 0, len(state.Players))
 	for i := range state.Players {
+		if state.Players[i].Role == constants.ROLE_GAME_MASTER {
+			continue
+		}
 		if _, ok := visibleRoles[state.Players[i].ID]; !ok {
 			state.Players[i].Role = ""
 		}
+		state.Players[i].ID = 0
+		filteredPlayers = append(filteredPlayers, state.Players[i])
 	}
+	state.Players = filteredPlayers
 }

@@ -51,7 +51,7 @@ func createSpeakerDiscussionPrompt(h *Handler, tx store.QueryRower, gameID int) 
 				Missions: missions,
 			},
 		),
-		MessagePrompt: prompts.RenderCommentPrompt(prompts.VoteProps{
+		MessagePrompt: prompts.RenderRateSquadPrompt(prompts.VoteProps{
 			Mission: *mission,
 			Leader:  leader.Name,
 			Team:    squadEvent.Content,

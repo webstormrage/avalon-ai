@@ -54,6 +54,7 @@ func (h *GameHandler) GetGameState(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	state.YourPosition = player.Position
 
 	FilterStateByRequester(state, *player)
 
