@@ -1,4 +1,4 @@
-package server
+package statemachine
 
 import (
 	"avalon/pkg/constants"
@@ -8,7 +8,7 @@ import (
 	"avalon/pkg/store"
 )
 
-func (h *GameHandler) createAssassinationPrompt(tx store.QueryRower, gameID int) error {
+func createAssassinationPrompt(h *Handler, tx store.QueryRower, gameID int) error {
 	game, err := store.GetGame(h.Ctx, tx, gameID)
 	if err != nil {
 		return err
@@ -43,7 +43,7 @@ func (h *GameHandler) createAssassinationPrompt(tx store.QueryRower, gameID int)
 			prompts.SystemPromptProps{
 				Name:     speaker.Name,
 				Players:  players,
-				Roles:    presets.Roles5, // TODO: надо брать из системных events
+				Roles:    presets.Roles5, // TODO: РЅР°РґРѕ Р±СЂР°С‚СЊ РёР· СЃРёСЃС‚РµРјРЅС‹С… events
 				Role:     speaker.Role,
 				Missions: missions,
 			},
@@ -52,7 +52,7 @@ func (h *GameHandler) createAssassinationPrompt(tx store.QueryRower, gameID int)
 	})
 }
 
-func (h *GameHandler) applyAssassinationPrompt(tx store.QueryRower, gameID int) error {
+func applyAssassinationPrompt(h *Handler, tx store.QueryRower, gameID int) error {
 	pendingPrompts, err := store.GetPromptsNotCompletedByGameID(h.Ctx, tx, gameID)
 	if err != nil {
 		return err
@@ -80,16 +80,16 @@ func (h *GameHandler) applyAssassinationPrompt(tx store.QueryRower, gameID int) 
 	targets, err := store.FindPlayersByNameLike(h.Ctx, tx, gameID, targetName)
 
 	err = store.CreateEvent(h.Ctx, tx, &dto.Event{
-		GameID:  game.ID,
-		Type:    constants.EVENT_ASSASSINATION,
-		Source:  speaker.Name,
-		Content: targetName,
+		GameID:   game.ID,
+		Type:     constants.EVENT_ASSASSINATION,
+		PlayerID: speaker.ID,
+		Content:  targetName,
 	})
 	err = store.CreateEvent(h.Ctx, tx, &dto.Event{
-		GameID:  game.ID,
-		Type:    constants.EVENT_PLAYER_SPEECH,
-		Source:  speaker.Name,
-		Content: prompt.Response,
+		GameID:   game.ID,
+		Type:     constants.EVENT_PLAYER_SPEECH,
+		PlayerID: speaker.ID,
+		Content:  prompt.Response,
 	})
 	if len(targets) > 0 && targets[0].Role == constants.ROLE_MERLIN {
 		game.GameState = constants.STATE_RED_VICTORY
@@ -100,19 +100,19 @@ func (h *GameHandler) applyAssassinationPrompt(tx store.QueryRower, gameID int) 
 	return store.UpdateGame(h.Ctx, tx, game)
 }
 
-func (h *GameHandler) handleAssassination(tx store.QueryRower, gameID int) error {
+func handleAssassination(h *Handler, tx store.QueryRower, gameID int) error {
 	pendingPrompts, err := store.GetPromptsNotCompletedByGameID(h.Ctx, tx, gameID)
 	if err != nil {
 		return err
 	}
 	if len(pendingPrompts) == 0 {
-		err = h.createAssassinationPrompt(tx, gameID)
+		err = createAssassinationPrompt(h, tx, gameID)
 	} else {
 		switch pendingPrompts[0].Status {
 		case constants.STATUS_NOT_STARTED:
-			err = h.sendLlmPrompt(tx, gameID)
+			err = sendLlmPrompt(h, tx, gameID)
 		case constants.STATUS_HAS_RESPONSE:
-			err = h.applyAssassinationPrompt(tx, gameID)
+			err = applyAssassinationPrompt(h, tx, gameID)
 		}
 	}
 	return err

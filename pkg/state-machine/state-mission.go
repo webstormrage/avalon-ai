@@ -1,4 +1,4 @@
-package server
+package statemachine
 
 import (
 	"avalon/pkg/constants"
@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-func (h *GameHandler) createMissionPrompt(tx store.QueryRower, gameID int) error {
+func createMissionPrompt(h *Handler, tx store.QueryRower, gameID int) error {
 	game, err := store.GetGame(h.Ctx, tx, gameID)
 	if err != nil {
 		return err
@@ -51,6 +51,11 @@ func (h *GameHandler) createMissionPrompt(tx store.QueryRower, gameID int) error
 	if err != nil {
 		return err
 	}
+	leaderName := squadEvent.PlayerName
+	if leaderName == "" {
+		leader := "player#" + strconv.Itoa(squadEvent.PlayerID)
+		leaderName = leader
+	}
 	return store.CreatePrompt(h.Ctx, tx, &dto.Prompt{
 		GameID: game.ID,
 		Model:  speaker.Model,
@@ -58,20 +63,20 @@ func (h *GameHandler) createMissionPrompt(tx store.QueryRower, gameID int) error
 			prompts.SystemPromptProps{
 				Name:     speaker.Name,
 				Players:  players,
-				Roles:    presets.Roles5, // TODO: надо брать из системных events
+				Roles:    presets.Roles5, // TODO: РЅР°РґРѕ Р±СЂР°С‚СЊ РёР· СЃРёСЃС‚РµРјРЅС‹С… events
 				Role:     speaker.Role,
 				Missions: missions,
 			},
 		),
 		MessagePrompt: prompts.RenderCompletionPrompt(prompts.VoteProps{
 			Mission: *mission,
-			Leader:  squadEvent.Source,
+			Leader:  leaderName,
 			Team:    squadEvent.Content,
 		}),
 	})
 }
 
-func (h *GameHandler) applyMissionPrompt(tx store.QueryRower, gameID int) error {
+func applyMissionPrompt(h *Handler, tx store.QueryRower, gameID int) error {
 	pendingPrompts, err := store.GetPromptsNotCompletedByGameID(h.Ctx, tx, gameID)
 	if err != nil {
 		return err
@@ -95,18 +100,18 @@ func (h *GameHandler) applyMissionPrompt(tx store.QueryRower, gameID int) error 
 	}
 
 	err = store.CreateEvent(h.Ctx, tx, &dto.Event{
-		GameID:  game.ID,
-		Type:    constants.EVENT_PLAYER_MISSION_RESULT,
-		Source:  speaker.Name,
-		Content: prompts.ExtractMissionResult(prompt.Response),
-		Hidden:  true,
+		GameID:   game.ID,
+		Type:     constants.EVENT_PLAYER_MISSION_RESULT,
+		PlayerID: speaker.ID,
+		Content:  prompts.ExtractMissionResult(prompt.Response),
+		Hidden:   true,
 	})
 	err = store.CreateEvent(h.Ctx, tx, &dto.Event{
-		GameID:  game.ID,
-		Type:    constants.EVENT_PLAYER_SPEECH,
-		Source:  speaker.Name,
-		Content: prompt.Response,
-		Hidden:  true,
+		GameID:   game.ID,
+		Type:     constants.EVENT_PLAYER_SPEECH,
+		PlayerID: speaker.ID,
+		Content:  prompt.Response,
+		Hidden:   true,
 	})
 	if err != nil {
 		return err
@@ -125,11 +130,11 @@ func (h *GameHandler) applyMissionPrompt(tx store.QueryRower, gameID int) error 
 
 	if len(squadNumbers) > 1 {
 		return store.CreateEvent(h.Ctx, tx, &dto.Event{
-			GameID:  game.ID,
-			Type:    constants.EVENT_SQUAD_ROSTER,
-			Source:  rosterEvent.Source,
-			Content: strings.Join(squadNumbers[1:], ", "),
-			Hidden:  true,
+			GameID:   game.ID,
+			Type:     constants.EVENT_SQUAD_ROSTER,
+			PlayerID: rosterEvent.PlayerID,
+			Content:  strings.Join(squadNumbers[1:], ", "),
+			Hidden:   true,
 		})
 	} else {
 		votes, err := store.GetEventsByGameIDAndType(h.Ctx, tx, gameID, constants.EVENT_PLAYER_MISSION_RESULT, mission.SquadSize)
@@ -140,23 +145,23 @@ func (h *GameHandler) applyMissionPrompt(tx store.QueryRower, gameID int) error 
 		votesAgainst := 0
 		votesResult := ""
 		for _, vote := range votes {
-			if vote.Content == "УСПЕХ" {
+			if vote.Content == "РЈРЎРџР•РҐ" {
 				votesFor += 1
 			} else {
 				votesAgainst += 1
 			}
 		}
-		votesResult += fmt.Sprintf("Итоги миссии.\nУспех - %d\nПровал - %d\n", votesFor, votesAgainst)
+		votesResult += fmt.Sprintf("РС‚РѕРіРё РјРёСЃСЃРёРё.\nРЈСЃРїРµС… - %d\nРџСЂРѕРІР°Р» - %d\n", votesFor, votesAgainst)
 		if votesAgainst > mission.MaxFails {
 			game.Fails++
 		} else {
 			game.Wins++
 		}
 		err = store.CreateEvent(h.Ctx, tx, &dto.Event{
-			GameID:  game.ID,
-			Type:    constants.EVENT_SQUAD_MISSION_RESULT,
-			Source:  speaker.Name,
-			Content: votesResult,
+			GameID:   game.ID,
+			Type:     constants.EVENT_SQUAD_MISSION_RESULT,
+			PlayerID: speaker.ID,
+			Content:  votesResult,
 		})
 		game.MissionPriority++
 		if err != nil {
@@ -164,7 +169,7 @@ func (h *GameHandler) applyMissionPrompt(tx store.QueryRower, gameID int) error 
 		}
 
 		if game.Wins >= 3 {
-			game.GameState = constants.STATE_ASSASSIONATION
+			game.GameState = constants.STATE_ASSASSIONATION_DISCUSSION
 		} else if game.Fails >= 3 {
 			game.GameState = constants.STATE_RED_VICTORY
 		} else {
@@ -183,19 +188,19 @@ func (h *GameHandler) applyMissionPrompt(tx store.QueryRower, gameID int) error 
 	}
 }
 
-func (h *GameHandler) handleMission(tx store.QueryRower, gameID int) error {
+func handleMission(h *Handler, tx store.QueryRower, gameID int) error {
 	pendingPrompts, err := store.GetPromptsNotCompletedByGameID(h.Ctx, tx, gameID)
 	if err != nil {
 		return err
 	}
 	if len(pendingPrompts) == 0 {
-		err = h.createMissionPrompt(tx, gameID)
+		err = createMissionPrompt(h, tx, gameID)
 	} else {
 		switch pendingPrompts[0].Status {
 		case constants.STATUS_NOT_STARTED:
-			err = h.sendLlmPrompt(tx, gameID)
+			err = sendLlmPrompt(h, tx, gameID)
 		case constants.STATUS_HAS_RESPONSE:
-			err = h.applyMissionPrompt(tx, gameID)
+			err = applyMissionPrompt(h, tx, gameID)
 		}
 	}
 	return err

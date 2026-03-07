@@ -1,4 +1,4 @@
-package server
+package statemachine
 
 import (
 	"avalon/pkg/constants"
@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-func (h *GameHandler) createLeaderDiscussionPrompt(tx store.QueryRower, gameID int) error {
+func createLeaderDiscussionPrompt(h *Handler, tx store.QueryRower, gameID int) error {
 	game, err := store.GetGame(h.Ctx, tx, gameID)
 	if err != nil {
 		return err
@@ -38,7 +38,7 @@ func (h *GameHandler) createLeaderDiscussionPrompt(tx store.QueryRower, gameID i
 			prompts.SystemPromptProps{
 				Name:     leader.Name,
 				Players:  players,
-				Roles:    presets.Roles5, // TODO: надо брать из базы
+				Roles:    presets.Roles5, // TODO: РЅР°РґРѕ Р±СЂР°С‚СЊ РёР· Р±Р°Р·С‹
 				Role:     leader.Role,
 				Missions: missions,
 			},
@@ -55,7 +55,7 @@ func (h *GameHandler) createLeaderDiscussionPrompt(tx store.QueryRower, gameID i
 
 }
 
-func (h *GameHandler) applyLeaderDiscussionPrompt(tx store.QueryRower, gameID int) error {
+func applyLeaderDiscussionPrompt(h *Handler, tx store.QueryRower, gameID int) error {
 	pendingPrompts, err := store.GetPromptsNotCompletedByGameID(h.Ctx, tx, gameID)
 	if err != nil {
 		return err
@@ -79,19 +79,19 @@ func (h *GameHandler) applyLeaderDiscussionPrompt(tx store.QueryRower, gameID in
 	}
 	squad, _ := prompts.ExtractTeam(prompt.Response)
 	err = store.CreateEvent(h.Ctx, tx, &dto.Event{
-		GameID:  game.ID,
-		Type:    constants.EVENT_SQUAD_DECLARATION,
-		Source:  leader.Name,
-		Content: strings.Join(squad, ", "),
+		GameID:   game.ID,
+		Type:     constants.EVENT_SQUAD_DECLARATION,
+		PlayerID: leader.ID,
+		Content:  strings.Join(squad, ", "),
 	})
 	if err != nil {
 		return err
 	}
 	err = store.CreateEvent(h.Ctx, tx, &dto.Event{
-		GameID:  game.ID,
-		Type:    constants.EVENT_PLAYER_SPEECH,
-		Source:  leader.Name,
-		Content: prompt.Response,
+		GameID:   game.ID,
+		Type:     constants.EVENT_PLAYER_SPEECH,
+		PlayerID: leader.ID,
+		Content:  prompt.Response,
 	})
 	if err != nil {
 		return err
@@ -109,19 +109,19 @@ func (h *GameHandler) applyLeaderDiscussionPrompt(tx store.QueryRower, gameID in
 	return store.UpdateGame(h.Ctx, tx, game)
 }
 
-func (h *GameHandler) handleLeaderDiscussion(tx store.QueryRower, gameID int) error {
+func handleLeaderDiscussion(h *Handler, tx store.QueryRower, gameID int) error {
 	pendingPrompts, err := store.GetPromptsNotCompletedByGameID(h.Ctx, tx, gameID)
 	if err != nil {
 		return err
 	}
 	if len(pendingPrompts) == 0 {
-		err = h.createLeaderDiscussionPrompt(tx, gameID)
+		err = createLeaderDiscussionPrompt(h, tx, gameID)
 	} else {
 		switch pendingPrompts[0].Status {
 		case constants.STATUS_NOT_STARTED:
-			err = h.sendLlmPrompt(tx, gameID)
+			err = sendLlmPrompt(h, tx, gameID)
 		case constants.STATUS_HAS_RESPONSE:
-			err = h.applyLeaderDiscussionPrompt(tx, gameID)
+			err = applyLeaderDiscussionPrompt(h, tx, gameID)
 		}
 	}
 	return err

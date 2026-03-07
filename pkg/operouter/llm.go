@@ -34,7 +34,7 @@ type errorResponse struct {
 	Detail any `json:"detail"`
 }
 
-func getMessages(logs []*dto.Event, user string) []chatMessage {
+func getMessages(logs []*dto.Event, user dto.PlayerV2) []chatMessage {
 	messages := make([]chatMessage, 0, len(logs))
 
 	for _, log := range logs {
@@ -45,12 +45,16 @@ func getMessages(logs []*dto.Event, user string) []chatMessage {
 		var role string
 		var message string
 
-		if log.Source == user {
+		if log.PlayerID == user.ID {
 			role = "assistant"
 			message = log.Content
 		} else {
 			role = "user"
-			message = fmt.Sprintf("[%s]%s: %s\n", log.Source, log.Type, log.Content)
+			speaker := log.PlayerName
+			if speaker == "" {
+				speaker = fmt.Sprintf("player#%d", log.PlayerID)
+			}
+			message = fmt.Sprintf("[%s]%s: %s\n", speaker, log.Type, log.Content)
 		}
 
 		messages = append(messages, chatMessage{
@@ -100,7 +104,7 @@ func (a *OpenRouterAgent) Send(
 	reqBody := chatRequest{
 		Model:        persona.Model,
 		SystemPrompt: systemPrompt,
-		Messages:     getMessages(logs, persona.Name),
+		Messages:     getMessages(logs, persona),
 		Instruction:  instruction,
 	}
 

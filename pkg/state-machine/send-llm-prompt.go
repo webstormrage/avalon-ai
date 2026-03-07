@@ -1,11 +1,11 @@
-package server
+package statemachine
 
 import (
 	"avalon/pkg/constants"
 	"avalon/pkg/store"
 )
 
-func (h *GameHandler) sendLlmPrompt(tx store.QueryRower, gameID int) error {
+func sendLlmPrompt(h *Handler, tx store.QueryRower, gameID int) error {
 	pendingPrompts, err := store.GetPromptsNotCompletedByGameID(h.Ctx, tx, gameID)
 	if err != nil {
 		return err

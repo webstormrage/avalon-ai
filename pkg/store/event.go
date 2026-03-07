@@ -16,7 +16,7 @@ func CreateEvent(
 	err := tx.QueryRowContext(ctx, `
         INSERT INTO events (
             game_id,
-            source,
+            player_id,
             type,               
             content,
             hidden
@@ -25,7 +25,7 @@ func CreateEvent(
         RETURNING id
     `,
 		event.GameID,
-		event.Source,
+		event.PlayerID,
 		event.Type,
 		event.Content,
 		event.Hidden,
@@ -46,16 +46,18 @@ func GetEventsByGameID(
 
 	rows, err := tx.QueryContext(ctx, `
 		SELECT
-			id,
-			game_id,
-			source,
-			type,
-			content,
-			hidden
-		FROM events
-		WHERE game_id = $1
-		  AND hidden = FALSE
-		ORDER BY created_at ASC
+			e.id,
+			e.game_id,
+			e.player_id,
+			COALESCE(p.name, ''),
+			e.type,
+			e.content,
+			e.hidden
+		FROM events e
+		LEFT JOIN players p ON p.id = e.player_id
+		WHERE e.game_id = $1
+		  AND e.hidden = FALSE
+		ORDER BY e.created_at ASC
 	`, gameID)
 	if err != nil {
 		return nil, fmt.Errorf("get events by game id: %w", err)
@@ -69,7 +71,8 @@ func GetEventsByGameID(
 		err := rows.Scan(
 			&event.ID,
 			&event.GameID,
-			&event.Source,
+			&event.PlayerID,
+			&event.PlayerName,
 			&event.Type,
 			&event.Content,
 			&event.Hidden,
@@ -99,21 +102,24 @@ func GetLastEventByGameIDAndType(
 
 	err := tx.QueryRowContext(ctx, `
 		SELECT
-			id,
-			game_id,
-			source,
-			type,
-			content,
-			hidden
-		FROM events
-		WHERE game_id = $1
-		  AND type = $2
-		ORDER BY created_at DESC
+			e.id,
+			e.game_id,
+			e.player_id,
+			COALESCE(p.name, ''),
+			e.type,
+			e.content,
+			e.hidden
+		FROM events e
+		LEFT JOIN players p ON p.id = e.player_id
+		WHERE e.game_id = $1
+		  AND e.type = $2
+		ORDER BY e.created_at DESC
 		LIMIT 1
 	`, gameID, eventType).Scan(
 		&event.ID,
 		&event.GameID,
-		&event.Source,
+		&event.PlayerID,
+		&event.PlayerName,
 		&event.Type,
 		&event.Content,
 		&event.Hidden,
@@ -139,17 +145,18 @@ func GetEventsByGameIDAndType(
 
 	rows, err := tx.QueryContext(ctx, `
 		SELECT
-			id,
-			game_id,
-			source,
-			type,
-			content,
-			hidden
+			t.id,
+			t.game_id,
+			t.player_id,
+			COALESCE(p.name, ''),
+			t.type,
+			t.content,
+			t.hidden
 		FROM (
 			SELECT
 				id,
 				game_id,
-				source,
+				player_id,
 				type,
 				content,
 				hidden,
@@ -160,7 +167,8 @@ func GetEventsByGameIDAndType(
 			ORDER BY created_at DESC
 			LIMIT $3
 		) t
-		ORDER BY created_at ASC
+		LEFT JOIN players p ON p.id = t.player_id
+		ORDER BY t.created_at ASC
 	`, gameID, eventType, limit)
 	if err != nil {
 		return nil, fmt.Errorf("get last n events by game id and type: %w", err)
@@ -174,7 +182,8 @@ func GetEventsByGameIDAndType(
 		if err := rows.Scan(
 			&event.ID,
 			&event.GameID,
-			&event.Source,
+			&event.PlayerID,
+			&event.PlayerName,
 			&event.Type,
 			&event.Content,
 			&event.Hidden,

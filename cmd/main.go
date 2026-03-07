@@ -3,6 +3,7 @@ package main
 import (
 	"avalon/pkg/operouter"
 	"avalon/pkg/server"
+	"avalon/pkg/state-machine"
 	"avalon/pkg/store"
 	"context"
 	"database/sql"
@@ -92,7 +93,11 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/games/new", handler.CreateGame)
 	mux.HandleFunc("/games/state", handler.GetGameState)
-	mux.HandleFunc("/games/next-tick", handler.NextTick)
+	mux.HandleFunc("/games/action", handler.ApplyGameAction)
+	mux.HandleFunc("/games/system-prompt", handler.RenderSystemPrompt)
+	mux.HandleFunc("/games/next-tick", func(w http.ResponseWriter, r *http.Request) {
+		statemachine.NextTick(handler, w, r)
+	})
 
 	loggedMux := LoggingMiddleware(mux)
 

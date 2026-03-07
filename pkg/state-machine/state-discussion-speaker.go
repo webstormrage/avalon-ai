@@ -1,4 +1,4 @@
-package server
+package statemachine
 
 import (
 	"avalon/pkg/constants"
@@ -8,7 +8,7 @@ import (
 	"avalon/pkg/store"
 )
 
-func (h *GameHandler) createSpeakerDiscussionPrompt(tx store.QueryRower, gameID int) error {
+func createSpeakerDiscussionPrompt(h *Handler, tx store.QueryRower, gameID int) error {
 	game, err := store.GetGame(h.Ctx, tx, gameID)
 	if err != nil {
 		return err
@@ -46,7 +46,7 @@ func (h *GameHandler) createSpeakerDiscussionPrompt(tx store.QueryRower, gameID 
 			prompts.SystemPromptProps{
 				Name:     speaker.Name,
 				Players:  players,
-				Roles:    presets.Roles5, // TODO: надо брать из системных events
+				Roles:    presets.Roles5, // TODO: РЅР°РґРѕ Р±СЂР°С‚СЊ РёР· СЃРёСЃС‚РµРјРЅС‹С… events
 				Role:     speaker.Role,
 				Missions: missions,
 			},
@@ -59,7 +59,7 @@ func (h *GameHandler) createSpeakerDiscussionPrompt(tx store.QueryRower, gameID 
 	})
 }
 
-func (h *GameHandler) applySpeakerDiscussionPrompt(tx store.QueryRower, gameID int) error {
+func applySpeakerDiscussionPrompt(h *Handler, tx store.QueryRower, gameID int) error {
 	pendingPrompts, err := store.GetPromptsNotCompletedByGameID(h.Ctx, tx, gameID)
 	if err != nil {
 		return err
@@ -83,10 +83,10 @@ func (h *GameHandler) applySpeakerDiscussionPrompt(tx store.QueryRower, gameID i
 	}
 
 	err = store.CreateEvent(h.Ctx, tx, &dto.Event{
-		GameID:  game.ID,
-		Type:    constants.EVENT_PLAYER_SPEECH,
-		Source:  speaker.Name,
-		Content: prompt.Response,
+		GameID:   game.ID,
+		Type:     constants.EVENT_PLAYER_SPEECH,
+		PlayerID: speaker.ID,
+		Content:  prompt.Response,
 	})
 
 	if err != nil {
@@ -103,26 +103,26 @@ func (h *GameHandler) applySpeakerDiscussionPrompt(tx store.QueryRower, gameID i
 		game.SpeakerPosition = 1
 	}
 	if game.SpeakerPosition == game.LeaderPosition {
-		// Круг замкнулся
+		// РљСЂСѓРі Р·Р°РјРєРЅСѓР»СЃСЏ
 		game.GameState = constants.STATE_VOTING
 	}
 
 	return store.UpdateGame(h.Ctx, tx, game)
 }
 
-func (h *GameHandler) handleSpeakerDiscussion(tx store.QueryRower, gameID int) error {
+func handleSpeakerDiscussion(h *Handler, tx store.QueryRower, gameID int) error {
 	pendingPrompts, err := store.GetPromptsNotCompletedByGameID(h.Ctx, tx, gameID)
 	if err != nil {
 		return err
 	}
 	if len(pendingPrompts) == 0 {
-		err = h.createSpeakerDiscussionPrompt(tx, gameID)
+		err = createSpeakerDiscussionPrompt(h, tx, gameID)
 	} else {
 		switch pendingPrompts[0].Status {
 		case constants.STATUS_NOT_STARTED:
-			err = h.sendLlmPrompt(tx, gameID)
+			err = sendLlmPrompt(h, tx, gameID)
 		case constants.STATUS_HAS_RESPONSE:
-			err = h.applySpeakerDiscussionPrompt(tx, gameID)
+			err = applySpeakerDiscussionPrompt(h, tx, gameID)
 		}
 	}
 	return err

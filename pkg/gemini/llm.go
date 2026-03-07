@@ -17,19 +17,23 @@ func i32(v int32) *int32 {
 	return &v
 }
 
-func getContents(logs []*dto.Event, user string) []*genai.Content {
+func getContents(logs []*dto.Event, user dto.PlayerV2) []*genai.Content {
 	var contents []*genai.Content
 
 	for _, log := range logs {
 		var role string
 		var message string
 
-		if log.Source == user {
+		if log.PlayerID == user.ID {
 			role = "model"
 			message = log.Content
 		} else {
 			role = "user"
-			message = fmt.Sprintf("[%s]%s: %s\n", log.Source, log.Type, log.Content)
+			speaker := log.PlayerName
+			if speaker == "" {
+				speaker = fmt.Sprintf("player#%d", log.PlayerID)
+			}
+			message = fmt.Sprintf("[%s]%s: %s\n", speaker, log.Type, log.Content)
 		}
 
 		contents = append(contents, &genai.Content{
@@ -94,7 +98,7 @@ func (a *GeminiAgent) Send(
 	model.TopK = i32(40)
 
 	chat := model.StartChat()
-	chat.History = getContents(logs, persona.Name)
+	chat.History = getContents(logs, persona)
 
 	resp, err := chat.SendMessage(a.ctx, genai.Text(instruction))
 	if err != nil {
