@@ -1,6 +1,7 @@
 package store
 
 import (
+	"avalon/pkg/constants"
 	"avalon/pkg/dto"
 	"context"
 	"database/sql"
@@ -175,7 +176,8 @@ func CountPlayersByGameID(
         SELECT COUNT(*)
         FROM players
         WHERE game_id = $1
-    `, gameID).Scan(&count)
+          AND LOWER(role) <> LOWER($2)
+    `, gameID, constants.ROLE_GAME_MASTER).Scan(&count)
 
 	return count, err
 }

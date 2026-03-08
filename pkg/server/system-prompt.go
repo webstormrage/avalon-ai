@@ -24,8 +24,6 @@ type renderSystemPromptResponse struct {
 }
 
 type promptHistoryEvent struct {
-	ID         int    `json:"id"`
-	GameID     int    `json:"game_id"`
 	PlayerName string `json:"playerName"`
 	Type       string `json:"type"`
 	Content    string `json:"content"`
@@ -124,8 +122,6 @@ func mapPromptHistoryEvents(events []*dto.Event, players []dto.PlayerV2) []promp
 		}
 
 		out = append(out, promptHistoryEvent{
-			ID:         event.ID,
-			GameID:     event.GameID,
 			PlayerName: playerName,
 			Type:       event.Type,
 			Content:    event.Content,

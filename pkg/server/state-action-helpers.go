@@ -3,24 +3,13 @@ package server
 import (
 	"avalon/pkg/constants"
 	"avalon/pkg/dto"
-	"avalon/pkg/prompts"
 	"avalon/pkg/store"
 	"fmt"
 	"strconv"
 	"strings"
 )
 
-func applyLeaderDiscussionPrompt(h *GameHandler, tx store.QueryRower, gameID int) error {
-	pendingPrompts, err := store.GetPromptsNotCompletedByGameID(h.Ctx, tx, gameID)
-	if err != nil {
-		return err
-	}
-	prompt := pendingPrompts[0]
-	prompt.Status = constants.STATUS_COMPLETED
-	if err := store.UpdatePrompt(h.Ctx, tx, &prompt); err != nil {
-		return err
-	}
-
+func applyProposeSquad(h *GameHandler, tx store.QueryRower, gameID int, action GameAction) error {
 	game, err := store.GetGame(h.Ctx, tx, gameID)
 	if err != nil {
 		return err
@@ -29,7 +18,10 @@ func applyLeaderDiscussionPrompt(h *GameHandler, tx store.QueryRower, gameID int
 	if err != nil {
 		return err
 	}
-	squad, _ := prompts.ExtractTeam(prompt.Response)
+	squad, err := squadNumbersToStrings(action.Params.SquadNumbers)
+	if err != nil {
+		return err
+	}
 	if err := store.CreateEvent(h.Ctx, tx, &dto.Event{
 		GameID:   game.ID,
 		Type:     constants.EVENT_SQUAD_DECLARATION,
@@ -42,7 +34,7 @@ func applyLeaderDiscussionPrompt(h *GameHandler, tx store.QueryRower, gameID int
 		GameID:   game.ID,
 		Type:     constants.EVENT_PLAYER_SPEECH,
 		PlayerID: leader.ID,
-		Content:  prompt.Response,
+		Content:  getActionMessage(action.Params),
 	}); err != nil {
 		return err
 	}
@@ -57,17 +49,7 @@ func applyLeaderDiscussionPrompt(h *GameHandler, tx store.QueryRower, gameID int
 	return store.UpdateGame(h.Ctx, tx, game)
 }
 
-func applySpeakerDiscussionPrompt(h *GameHandler, tx store.QueryRower, gameID int) error {
-	pendingPrompts, err := store.GetPromptsNotCompletedByGameID(h.Ctx, tx, gameID)
-	if err != nil {
-		return err
-	}
-	prompt := pendingPrompts[0]
-	prompt.Status = constants.STATUS_COMPLETED
-	if err := store.UpdatePrompt(h.Ctx, tx, &prompt); err != nil {
-		return err
-	}
-
+func applyRateSquad(h *GameHandler, tx store.QueryRower, gameID int, action GameAction) error {
 	game, err := store.GetGame(h.Ctx, tx, gameID)
 	if err != nil {
 		return err
@@ -80,7 +62,7 @@ func applySpeakerDiscussionPrompt(h *GameHandler, tx store.QueryRower, gameID in
 		GameID:   game.ID,
 		Type:     constants.EVENT_PLAYER_SPEECH,
 		PlayerID: speaker.ID,
-		Content:  prompt.Response,
+		Content:  getActionMessage(action.Params),
 	}); err != nil {
 		return err
 	}
@@ -98,17 +80,7 @@ func applySpeakerDiscussionPrompt(h *GameHandler, tx store.QueryRower, gameID in
 	return store.UpdateGame(h.Ctx, tx, game)
 }
 
-func applyLeaderVotingPrompt(h *GameHandler, tx store.QueryRower, gameID int) error {
-	pendingPrompts, err := store.GetPromptsNotCompletedByGameID(h.Ctx, tx, gameID)
-	if err != nil {
-		return err
-	}
-	prompt := pendingPrompts[0]
-	prompt.Status = constants.STATUS_COMPLETED
-	if err := store.UpdatePrompt(h.Ctx, tx, &prompt); err != nil {
-		return err
-	}
-
+func applyAnnounceSquad(h *GameHandler, tx store.QueryRower, gameID int, action GameAction) error {
 	game, err := store.GetGame(h.Ctx, tx, gameID)
 	if err != nil {
 		return err
@@ -117,7 +89,10 @@ func applyLeaderVotingPrompt(h *GameHandler, tx store.QueryRower, gameID int) er
 	if err != nil {
 		return err
 	}
-	squad, _ := prompts.ExtractTeam(prompt.Response)
+	squad, err := squadNumbersToStrings(action.Params.SquadNumbers)
+	if err != nil {
+		return err
+	}
 	if err := store.CreateEvent(h.Ctx, tx, &dto.Event{
 		GameID:   game.ID,
 		Type:     constants.EVENT_SQUAD_STATEMENT,
@@ -126,14 +101,7 @@ func applyLeaderVotingPrompt(h *GameHandler, tx store.QueryRower, gameID int) er
 	}); err != nil {
 		return err
 	}
-	roster := []string{}
-	for _, name := range squad {
-		players, err := store.FindPlayersByNameLike(h.Ctx, tx, gameID, name)
-		if err != nil {
-			return err
-		}
-		roster = append(roster, strconv.Itoa(players[0].Position))
-	}
+	roster := squad
 	if err := store.CreateEvent(h.Ctx, tx, &dto.Event{
 		GameID:   game.ID,
 		Type:     constants.EVENT_SQUAD_ROSTER,
@@ -147,7 +115,7 @@ func applyLeaderVotingPrompt(h *GameHandler, tx store.QueryRower, gameID int) er
 		GameID:   game.ID,
 		Type:     constants.EVENT_PLAYER_SPEECH,
 		PlayerID: leader.ID,
-		Content:  prompt.Response,
+		Content:  getActionMessage(action.Params),
 	}); err != nil {
 		return err
 	}
@@ -162,17 +130,7 @@ func applyLeaderVotingPrompt(h *GameHandler, tx store.QueryRower, gameID int) er
 	return store.UpdateGame(h.Ctx, tx, game)
 }
 
-func applySpeakerVotingPrompt(h *GameHandler, tx store.QueryRower, gameID int) error {
-	pendingPrompts, err := store.GetPromptsNotCompletedByGameID(h.Ctx, tx, gameID)
-	if err != nil {
-		return err
-	}
-	prompt := pendingPrompts[0]
-	prompt.Status = constants.STATUS_COMPLETED
-	if err := store.UpdatePrompt(h.Ctx, tx, &prompt); err != nil {
-		return err
-	}
-
+func applyVoteSquad(h *GameHandler, tx store.QueryRower, gameID int, action GameAction) error {
 	game, err := store.GetGame(h.Ctx, tx, gameID)
 	if err != nil {
 		return err
@@ -185,16 +143,20 @@ func applySpeakerVotingPrompt(h *GameHandler, tx store.QueryRower, gameID int) e
 		GameID:   game.ID,
 		Type:     constants.EVENT_PLAYER_SPEECH,
 		PlayerID: speaker.ID,
-		Content:  prompt.Response,
+		Content:  getActionMessage(action.Params),
 		Hidden:   true,
 	}); err != nil {
+		return err
+	}
+	approve, err := actionApproveToVote(action.Params)
+	if err != nil {
 		return err
 	}
 	if err := store.CreateEvent(h.Ctx, tx, &dto.Event{
 		GameID:   game.ID,
 		Type:     constants.EVENT_SQUAD_VOTE,
 		PlayerID: speaker.ID,
-		Content:  prompts.ExtractVote(prompt.Response),
+		Content:  approve,
 		Hidden:   true,
 	}); err != nil {
 		return err
@@ -253,17 +215,7 @@ func applySpeakerVotingPrompt(h *GameHandler, tx store.QueryRower, gameID int) e
 	return store.UpdateGame(h.Ctx, tx, game)
 }
 
-func applyMissionPrompt(h *GameHandler, tx store.QueryRower, gameID int) error {
-	pendingPrompts, err := store.GetPromptsNotCompletedByGameID(h.Ctx, tx, gameID)
-	if err != nil {
-		return err
-	}
-	prompt := pendingPrompts[0]
-	prompt.Status = constants.STATUS_COMPLETED
-	if err := store.UpdatePrompt(h.Ctx, tx, &prompt); err != nil {
-		return err
-	}
-
+func applyMissionAction(h *GameHandler, tx store.QueryRower, gameID int, action GameAction) error {
 	game, err := store.GetGame(h.Ctx, tx, gameID)
 	if err != nil {
 		return err
@@ -272,11 +224,15 @@ func applyMissionPrompt(h *GameHandler, tx store.QueryRower, gameID int) error {
 	if err != nil {
 		return err
 	}
+	success, err := actionSuccessToMissionResult(action.Params)
+	if err != nil {
+		return err
+	}
 	if err := store.CreateEvent(h.Ctx, tx, &dto.Event{
 		GameID:   game.ID,
 		Type:     constants.EVENT_PLAYER_MISSION_RESULT,
 		PlayerID: speaker.ID,
-		Content:  prompts.ExtractMissionResult(prompt.Response),
+		Content:  success,
 		Hidden:   true,
 	}); err != nil {
 		return err
@@ -285,7 +241,7 @@ func applyMissionPrompt(h *GameHandler, tx store.QueryRower, gameID int) error {
 		GameID:   game.ID,
 		Type:     constants.EVENT_PLAYER_SPEECH,
 		PlayerID: speaker.ID,
-		Content:  prompt.Response,
+		Content:  getActionMessage(action.Params),
 		Hidden:   true,
 	}); err != nil {
 		return err
@@ -356,16 +312,7 @@ func applyMissionPrompt(h *GameHandler, tx store.QueryRower, gameID int) error {
 	return store.UpdateGame(h.Ctx, tx, game)
 }
 
-func applyAssassinationPrompt(h *GameHandler, tx store.QueryRower, gameID int) error {
-	pendingPrompts, err := store.GetPromptsNotCompletedByGameID(h.Ctx, tx, gameID)
-	if err != nil {
-		return err
-	}
-	prompt := pendingPrompts[0]
-	prompt.Status = constants.STATUS_COMPLETED
-	if err := store.UpdatePrompt(h.Ctx, tx, &prompt); err != nil {
-		return err
-	}
+func applyAnnounceAssassination(h *GameHandler, tx store.QueryRower, gameID int, action GameAction) error {
 	game, err := store.GetGame(h.Ctx, tx, gameID)
 	if err != nil {
 		return err
@@ -374,16 +321,22 @@ func applyAssassinationPrompt(h *GameHandler, tx store.QueryRower, gameID int) e
 	if err != nil {
 		return err
 	}
-	targetName, _ := prompts.ExtractAssassinationTarget(prompt.Response)
-	targets, err := store.FindPlayersByNameLike(h.Ctx, tx, gameID, targetName)
+	if action.Params.Target == nil {
+		return fmt.Errorf("missing params.target")
+	}
+	targetPos := *action.Params.Target
+	target, err := store.GetPlayerByPosition(h.Ctx, tx, gameID, targetPos)
 	if err != nil {
 		return err
+	}
+	if target == nil {
+		return fmt.Errorf("unknown target position: %d", targetPos)
 	}
 	if err := store.CreateEvent(h.Ctx, tx, &dto.Event{
 		GameID:   game.ID,
 		Type:     constants.EVENT_ASSASSINATION,
 		PlayerID: speaker.ID,
-		Content:  targetName,
+		Content:  target.Name,
 	}); err != nil {
 		return err
 	}
@@ -391,14 +344,55 @@ func applyAssassinationPrompt(h *GameHandler, tx store.QueryRower, gameID int) e
 		GameID:   game.ID,
 		Type:     constants.EVENT_PLAYER_SPEECH,
 		PlayerID: speaker.ID,
-		Content:  prompt.Response,
+		Content:  getActionMessage(action.Params),
 	}); err != nil {
 		return err
 	}
-	if len(targets) > 0 && targets[0].Role == constants.ROLE_MERLIN {
+	if target.Role == constants.ROLE_MERLIN {
 		game.GameState = constants.STATE_RED_VICTORY
 	} else {
 		game.GameState = constants.STATE_BLUE_VICTORY
 	}
 	return store.UpdateGame(h.Ctx, tx, game)
+}
+
+func getActionMessage(params GameActionParams) string {
+	if params.Message == nil {
+		return ""
+	}
+	return *params.Message
+}
+
+func squadNumbersToStrings(squadNumbers []int) ([]string, error) {
+	if len(squadNumbers) == 0 {
+		return nil, fmt.Errorf("params.squadNumbers must be non-empty")
+	}
+	roster := make([]string, 0, len(squadNumbers))
+	for _, number := range squadNumbers {
+		if number <= 0 {
+			return nil, fmt.Errorf("invalid squad number: %d", number)
+		}
+		roster = append(roster, strconv.Itoa(number))
+	}
+	return roster, nil
+}
+
+func actionApproveToVote(params GameActionParams) (string, error) {
+	if params.Approve == nil {
+		return "", fmt.Errorf("params.approve must be boolean")
+	}
+	if *params.Approve {
+		return "Р—Рђ", nil
+	}
+	return "РџР РћРўРР’", nil
+}
+
+func actionSuccessToMissionResult(params GameActionParams) (string, error) {
+	if params.Success == nil {
+		return "", fmt.Errorf("params.success must be boolean")
+	}
+	if *params.Success {
+		return "РЈРЎРџР•РҐ", nil
+	}
+	return "РџР РћР’РђР›", nil
 }

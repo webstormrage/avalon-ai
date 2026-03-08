@@ -83,7 +83,7 @@ def read_param(name: str, description: str):
         return read_bool(f"{name} ({description}): ")
     if name == "target":
         return read_int(f"{name} ({description}): ")
-    if name == "squad":
+    if name in {"squad", "squadNumbers"}:
         return read_squad(f"{name} ({description}) [example: 1,2]: ")
     value = input(f"{name} ({description}): ")
     if name == "message":

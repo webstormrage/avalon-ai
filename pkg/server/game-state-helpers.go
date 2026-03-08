@@ -45,8 +45,8 @@ func getRequiredAction(game dto.GameV2, players []dto.PlayerV2) *RequiredAction 
 				PlayerID: speakerID,
 				Name:     "propose_squad",
 				ParamsDef: map[string]string{
-					"message": "Это публичное сообщение для всех игроков",
-					"squad":   "список номеров игроков состава",
+					"message":      "Это публичное сообщение для всех игроков",
+					"squadNumbers": "список номеров игроков состава",
 				},
 			}
 		}
@@ -63,8 +63,8 @@ func getRequiredAction(game dto.GameV2, players []dto.PlayerV2) *RequiredAction 
 				PlayerID: speakerID,
 				Name:     "announce_squad",
 				ParamsDef: map[string]string{
-					"message": "Это публичное сообщение для всех игроков",
-					"squad":   "список номеров игроков состава",
+					"message":      "Это публичное сообщение для всех игроков",
+					"squadNumbers": "список номеров игроков состава",
 				},
 			}
 		}
