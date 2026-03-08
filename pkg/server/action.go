@@ -3,7 +3,6 @@ package server
 import (
 	"avalon/pkg/constants"
 	"avalon/pkg/dto"
-	"avalon/pkg/prompts"
 	"avalon/pkg/store"
 	"encoding/json"
 	"fmt"
@@ -80,101 +79,6 @@ func (h *GameHandler) ApplyGameAction(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if action.Name == "propose_assassination" || action.Name == "rate_assassination" {
-		if game.GameState != constants.STATE_ASSASSIONATION_DISCUSSION && game.GameState != constants.STATE_ASSASSINATION_DISCUSSION {
-			http.Error(w, "assassination discussion action allowed only in ASSASSIONATION_DISCUSSION", http.StatusConflict)
-			return
-		}
-		var actionErr error
-		if action.Name == "propose_assassination" {
-			actionErr = applyProposeAssassinationAction(h, tx, game, speaker, action.Params)
-		} else {
-			actionErr = applyRateAssassinationAction(h, tx, game, speaker, action.Params)
-		}
-		if actionErr != nil {
-			http.Error(w, actionErr.Error(), http.StatusBadRequest)
-			return
-		}
-		state, err := getState(h, tx, game.ID)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		if err := tx.Commit(); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		w.WriteHeader(http.StatusOK)
-		_ = json.NewEncoder(w).Encode(state)
-		return
-	}
-
-	pendingPrompts, err := store.GetPromptsNotCompletedByGameID(h.Ctx, tx, game.ID)
-	if err != nil || len(pendingPrompts) == 0 {
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		} else {
-			http.Error(w, "no active prompt", http.StatusConflict)
-		}
-		return
-	}
-
-	var responseText string
-	switch action.Name {
-	case "propose_squad":
-		if game.GameState != constants.STATE_DISCUSSION || game.SpeakerPosition != game.LeaderPosition {
-			http.Error(w, "propose_squad allowed only for leader in DISCUSSION", http.StatusConflict)
-			return
-		}
-		responseText, err = buildProposeSquadResponse(action.Params, game.ID, tx, h)
-	case "rate_squad":
-		if game.GameState != constants.STATE_DISCUSSION || game.SpeakerPosition == game.LeaderPosition {
-			http.Error(w, "rate_squad allowed only for non-leader in DISCUSSION", http.StatusConflict)
-			return
-		}
-		responseText, err = buildRateSquadResponse(action.Params)
-	case "announce_squad":
-		if game.GameState != constants.STATE_VOTING || game.SpeakerPosition != game.LeaderPosition {
-			http.Error(w, "announce_squad allowed only for leader in VOTING", http.StatusConflict)
-			return
-		}
-		responseText, err = buildProposeSquadResponse(action.Params, game.ID, tx, h)
-	case "vote_squad":
-		if game.GameState != constants.STATE_VOTING || game.SpeakerPosition == game.LeaderPosition {
-			http.Error(w, "vote_squad allowed only for non-leader in VOTING", http.StatusConflict)
-			return
-		}
-		responseText, err = buildVoteSquadResponse(action.Params)
-	case "mission_action":
-		if game.GameState != constants.STATE_MISSION {
-			http.Error(w, "mission_action allowed only in MISSION", http.StatusConflict)
-			return
-		}
-		responseText, err = buildMissionActionResponse(action.Params)
-	case "announce_assassination":
-		if game.GameState != constants.STATE_ASSASSIONATION && game.GameState != constants.STATE_ASSASSINATION {
-			http.Error(w, "announce_assassination allowed only in ASSASSINATION", http.StatusConflict)
-			return
-		}
-		responseText, err = buildAnnounceAssassinationResponse(action.Params, game.ID, tx, h)
-	default:
-		http.Error(w, "unsupported action name", http.StatusBadRequest)
-		return
-	}
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	prompt := pendingPrompts[0]
-	prompt.Response = responseText
-	prompt.Status = constants.STATUS_HAS_RESPONSE
-	if err := store.UpdatePrompt(h.Ctx, tx, &prompt); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
 	switch action.Name {
 	case "propose_squad":
 		err = applyLeaderDiscussionPrompt(h, tx, game.ID)
@@ -188,6 +92,10 @@ func (h *GameHandler) ApplyGameAction(w http.ResponseWriter, r *http.Request) {
 		err = applyMissionPrompt(h, tx, game.ID)
 	case "announce_assassination":
 		err = applyAssassinationPrompt(h, tx, game.ID)
+	case "propose_assassination":
+		err = applyProposeAssassinationAction(h, tx, game, speaker, action.Params)
+	case "rate_assassination":
+		err = applyRateAssassinationAction(h, tx, game, speaker, action.Params)
 	}
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -208,130 +116,6 @@ func (h *GameHandler) ApplyGameAction(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(state)
 }
 
-func buildProposeSquadResponse(params map[string]any, gameID int, tx store.QueryRower, h *GameHandler) (string, error) {
-	if params == nil {
-		return "", fmt.Errorf("missing action.params")
-	}
-	message, ok := params["message"].(string)
-	if !ok {
-		return "", fmt.Errorf("params.message must be string")
-	}
-	squadRaw, ok := params["squad"]
-	if !ok {
-		return "", fmt.Errorf("missing params.squad")
-	}
-	squadPositions, err := parseSquadPositions(squadRaw)
-	if err != nil {
-		return "", err
-	}
-	players, err := store.GetPlayersByGameID(h.Ctx, tx, gameID)
-	if err != nil {
-		return "", err
-	}
-	nameByPos := map[int]string{}
-	for _, p := range players {
-		nameByPos[p.Position] = p.Name
-	}
-	squadNames := make([]string, 0, len(squadPositions))
-	for _, pos := range squadPositions {
-		name, ok := nameByPos[pos]
-		if !ok {
-			return "", fmt.Errorf("unknown squad position: %d", pos)
-		}
-		squadNames = append(squadNames, name)
-	}
-	response := strings.TrimSpace(message)
-	line := "Выставить: " + strings.Join(squadNames, ", ")
-	if response == "" {
-		return line, nil
-	}
-	return response + "\n" + line, nil
-}
-
-func buildRateSquadResponse(params map[string]any) (string, error) {
-	if params == nil {
-		return "", fmt.Errorf("missing action.params")
-	}
-	message, ok := params["message"].(string)
-	if !ok {
-		return "", fmt.Errorf("params.message must be string")
-	}
-	message = strings.TrimSpace(message)
-	if message == "" {
-		return "", fmt.Errorf("params.message must not be empty")
-	}
-	return message, nil
-}
-
-func buildVoteSquadResponse(params map[string]any) (string, error) {
-	if params == nil {
-		return "", fmt.Errorf("missing action.params")
-	}
-	approve, ok := params["approve"].(bool)
-	if !ok {
-		return "", fmt.Errorf("params.approve must be boolean")
-	}
-	vote := "ПРОТИВ"
-	if approve {
-		vote = "ЗА"
-	}
-	response := "Голосовать: " + vote
-	if prompts.ExtractVote(response) == "" {
-		return "", fmt.Errorf("failed to build vote response")
-	}
-	return response, nil
-}
-
-func buildMissionActionResponse(params map[string]any) (string, error) {
-	if params == nil {
-		return "", fmt.Errorf("missing action.params")
-	}
-	success, ok := params["success"].(bool)
-	if !ok {
-		return "", fmt.Errorf("params.success must be boolean")
-	}
-	res := "ПРОВАЛ"
-	if success {
-		res = "УСПЕХ"
-	}
-	response := "Совершить: " + res
-	if prompts.ExtractMissionResult(response) != res {
-		return "", fmt.Errorf("failed to build mission response")
-	}
-	return response, nil
-}
-
-func buildAnnounceAssassinationResponse(params map[string]any, gameID int, tx store.QueryRower, h *GameHandler) (string, error) {
-	if params == nil {
-		return "", fmt.Errorf("missing action.params")
-	}
-	message, ok := params["message"].(string)
-	if !ok {
-		return "", fmt.Errorf("params.message must be string")
-	}
-	targetRaw, ok := params["target"]
-	if !ok {
-		return "", fmt.Errorf("missing params.target")
-	}
-	targetPos, err := parseIntLike(targetRaw)
-	if err != nil {
-		return "", fmt.Errorf("params.target must be integer")
-	}
-	targetPlayer, err := store.GetPlayerByPosition(h.Ctx, tx, gameID, targetPos)
-	if err != nil {
-		return "", err
-	}
-	if targetPlayer == nil {
-		return "", fmt.Errorf("unknown target position: %d", targetPos)
-	}
-	response := strings.TrimSpace(message)
-	line := "Выбрать: " + targetPlayer.Name
-	if response == "" {
-		return line, nil
-	}
-	return response + "\n" + line, nil
-}
-
 func parseIntLike(v any) (int, error) {
 	switch t := v.(type) {
 	case float64:
@@ -346,6 +130,9 @@ func parseIntLike(v any) (int, error) {
 }
 
 func applyProposeAssassinationAction(h *GameHandler, tx store.QueryRower, game *dto.GameV2, speaker *dto.PlayerV2, params map[string]any) error {
+	if game.GameState != constants.STATE_ASSASSIONATION_DISCUSSION && game.GameState != constants.STATE_ASSASSINATION_DISCUSSION {
+		return fmt.Errorf("assassination discussion action allowed only in ASSASSIONATION_DISCUSSION")
+	}
 	if params == nil {
 		return fmt.Errorf("missing action.params")
 	}
@@ -387,6 +174,9 @@ func applyProposeAssassinationAction(h *GameHandler, tx store.QueryRower, game *
 }
 
 func applyRateAssassinationAction(h *GameHandler, tx store.QueryRower, game *dto.GameV2, speaker *dto.PlayerV2, params map[string]any) error {
+	if game.GameState != constants.STATE_ASSASSIONATION_DISCUSSION && game.GameState != constants.STATE_ASSASSINATION_DISCUSSION {
+		return fmt.Errorf("assassination discussion action allowed only in ASSASSIONATION_DISCUSSION")
+	}
 	if params == nil {
 		return fmt.Errorf("missing action.params")
 	}

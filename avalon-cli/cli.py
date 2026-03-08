@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import json
+import os
 import shlex
 import sys
 import urllib.error
@@ -8,6 +9,7 @@ import urllib.request
 
 
 BASE_URL = "http://localhost:8080"
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 def print_json(data: dict):
@@ -83,7 +85,14 @@ def read_param(name: str, description: str):
         return read_int(f"{name} ({description}): ")
     if name == "squad":
         return read_squad(f"{name} ({description}) [example: 1,2]: ")
-    return input(f"{name} ({description}): ")
+    value = input(f"{name} ({description}): ")
+    if name == "message":
+        value = value.strip()
+        if value.startswith("./"):
+            path = os.path.normpath(os.path.join(SCRIPT_DIR, value[2:]))
+            with open(path, "r", encoding="utf-8") as f:
+                return f.read()
+    return value
 
 
 def get_state(game_id: int, player_id: int) -> dict:
