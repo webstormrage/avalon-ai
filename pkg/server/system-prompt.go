@@ -2,10 +2,12 @@ package server
 
 import (
 	"avalon/pkg/constants"
+	"avalon/pkg/dto"
 	"avalon/pkg/presets"
 	"avalon/pkg/prompts"
 	"avalon/pkg/store"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 )
@@ -16,8 +18,17 @@ type renderSystemPromptRequest struct {
 }
 
 type renderSystemPromptResponse struct {
-	SystemPrompt string `json:"systemPrompt"`
-	ActionPrompt string `json:"actionPrompt,omitempty"`
+	SystemPrompt string               `json:"systemPrompt"`
+	ActionPrompt string               `json:"actionPrompt,omitempty"`
+	History      []promptHistoryEvent `json:"history"`
+}
+
+type promptHistoryEvent struct {
+	ID         int    `json:"id"`
+	GameID     int    `json:"game_id"`
+	PlayerName string `json:"playerName"`
+	Type       string `json:"type"`
+	Content    string `json:"content"`
 }
 
 func (h *GameHandler) RenderSystemPrompt(w http.ResponseWriter, r *http.Request) {
@@ -62,6 +73,11 @@ func (h *GameHandler) RenderSystemPrompt(w http.ResponseWriter, r *http.Request)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	events, err := store.GetEventsByGameID(h.Ctx, h.DB, req.GameState.Game.ID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
 	systemPrompt := prompts.GetSystemPrompt(prompts.SystemPromptProps{
 		Name:     player.Name,
@@ -81,10 +97,42 @@ func (h *GameHandler) RenderSystemPrompt(w http.ResponseWriter, r *http.Request)
 	if err := json.NewEncoder(w).Encode(renderSystemPromptResponse{
 		SystemPrompt: systemPrompt,
 		ActionPrompt: actionPrompt,
+		History:      mapPromptHistoryEvents(events, req.GameState.Players),
 	}); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+}
+
+func mapPromptHistoryEvents(events []*dto.Event, players []dto.PlayerV2) []promptHistoryEvent {
+	playerNamesByID := make(map[int]string, len(players))
+	for _, p := range players {
+		playerNamesByID[p.ID] = p.Name
+	}
+
+	out := make([]promptHistoryEvent, 0, len(events))
+	for _, event := range events {
+		if event == nil {
+			continue
+		}
+		playerName := event.PlayerName
+		if playerName == "" {
+			playerName = playerNamesByID[event.PlayerID]
+		}
+		if playerName == "" && event.PlayerID != 0 {
+			playerName = fmt.Sprintf("player#%d", event.PlayerID)
+		}
+
+		out = append(out, promptHistoryEvent{
+			ID:         event.ID,
+			GameID:     event.GameID,
+			PlayerName: playerName,
+			Type:       event.Type,
+			Content:    event.Content,
+		})
+	}
+
+	return out
 }
 
 func (h *GameHandler) renderActionPrompt(gameID int, requiredAction *RequiredAction) (string, error) {
