@@ -30,12 +30,34 @@ func (h *GameHandler) CreateGame(w http.ResponseWriter, r *http.Request) {
 
 	players := presets.GetPlayersV2()
 
-	leaderPosition := rand.Intn(len(players)) + 1
+	leaderPosition := rand.Intn(len(players)-1) + 1
+	orderedPlayers := make([]dto.PlayerV2, 0, len(players))
+	for _, p := range players {
+		if p == nil {
+			continue
+		}
+		orderedPlayers = append(orderedPlayers, *p)
+	}
+	initialTurnsOrder, err := orderedAllFromLeader(orderedPlayers, leaderPosition)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	for _, m := range missions {
+		if m == nil {
+			continue
+		}
+		if m.Priority == 1 {
+			m.Squad = []int{leaderPosition}
+			break
+		}
+	}
 
 	game := &dto.GameV2{
 		MissionPriority: 1,
 		LeaderPosition:  leaderPosition,
 		SpeakerPosition: leaderPosition,
+		TurnsOrder:      initialTurnsOrder,
 		SkipsCount:      0,
 		Wins:            0,
 		Fails:           0,
@@ -44,6 +66,19 @@ func (h *GameHandler) CreateGame(w http.ResponseWriter, r *http.Request) {
 
 	gameID, err := store.CreateGameTransaction(ctx, h.DB, game, missions, players)
 	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	createdGame, err := store.GetGame(ctx, h.DB, gameID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if createdGame == nil {
+		http.Error(w, "game not found after create", http.StatusInternalServerError)
+		return
+	}
+	if err := persistGameWithTurnsOrder(h, h.DB, createdGame); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

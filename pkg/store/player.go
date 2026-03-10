@@ -8,7 +8,7 @@ import (
 )
 
 const playerSelect = `
-	id, name, model, role, character_type, position, game_id
+	id, name, model, role, character_type, position, vote, mission_action, game_id
 `
 
 // ------------------------------------------------
@@ -23,9 +23,9 @@ func CreatePlayer(
 
 	return tx.QueryRowContext(ctx, `
         INSERT INTO players (
-            name, model, role, character_type, position, game_id
+            name, model, role, character_type, position, vote, mission_action, game_id
         )
-        VALUES ($1, $2, $3, $4, $5, $6)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         RETURNING id
     `,
 		p.Name,
@@ -33,6 +33,8 @@ func CreatePlayer(
 		p.Role,
 		p.CharacterType,
 		p.Position,
+		p.Vote,
+		p.MissionAction,
 		p.GameID,
 	).Scan(&p.ID)
 }
@@ -49,6 +51,8 @@ func GetPlayerByPosition(
 ) (*dto.PlayerV2, error) {
 
 	var p dto.PlayerV2
+	var vote sql.NullString
+	var missionAction sql.NullString
 
 	err := db.QueryRowContext(ctx, `
         SELECT `+playerSelect+`
@@ -61,6 +65,8 @@ func GetPlayerByPosition(
 		&p.Role,
 		&p.CharacterType,
 		&p.Position,
+		&vote,
+		&missionAction,
 		&p.GameID,
 	)
 
@@ -70,6 +76,8 @@ func GetPlayerByPosition(
 		}
 		return nil, err
 	}
+	assignNullableString(&p.Vote, vote)
+	assignNullableString(&p.MissionAction, missionAction)
 
 	return &p, nil
 }
@@ -100,6 +108,8 @@ func FindPlayersByNameLike(
 
 	for rows.Next() {
 		var p dto.PlayerV2
+		var vote sql.NullString
+		var missionAction sql.NullString
 		if err := rows.Scan(
 			&p.ID,
 			&p.Name,
@@ -107,10 +117,14 @@ func FindPlayersByNameLike(
 			&p.Role,
 			&p.CharacterType,
 			&p.Position,
+			&vote,
+			&missionAction,
 			&p.GameID,
 		); err != nil {
 			return nil, err
 		}
+		assignNullableString(&p.Vote, vote)
+		assignNullableString(&p.MissionAction, missionAction)
 		players = append(players, p)
 	}
 
@@ -143,6 +157,8 @@ func GetPlayersByRole(
 
 	for rows.Next() {
 		var p dto.PlayerV2
+		var vote sql.NullString
+		var missionAction sql.NullString
 		if err := rows.Scan(
 			&p.ID,
 			&p.Name,
@@ -150,10 +166,14 @@ func GetPlayersByRole(
 			&p.Role,
 			&p.CharacterType,
 			&p.Position,
+			&vote,
+			&missionAction,
 			&p.GameID,
 		); err != nil {
 			return nil, err
 		}
+		assignNullableString(&p.Vote, vote)
+		assignNullableString(&p.MissionAction, missionAction)
 		players = append(players, p)
 	}
 
@@ -207,6 +227,8 @@ func GetPlayersByGameID(
 
 	for rows.Next() {
 		var p dto.PlayerV2
+		var vote sql.NullString
+		var missionAction sql.NullString
 		if err := rows.Scan(
 			&p.ID,
 			&p.Name,
@@ -214,10 +236,14 @@ func GetPlayersByGameID(
 			&p.Role,
 			&p.CharacterType,
 			&p.Position,
+			&vote,
+			&missionAction,
 			&p.GameID,
 		); err != nil {
 			return nil, err
 		}
+		assignNullableString(&p.Vote, vote)
+		assignNullableString(&p.MissionAction, missionAction)
 		players = append(players, p)
 	}
 
@@ -235,6 +261,8 @@ func GetPlayerByID(
 ) (*dto.PlayerV2, error) {
 
 	var p dto.PlayerV2
+	var vote sql.NullString
+	var missionAction sql.NullString
 
 	err := db.QueryRowContext(ctx, `
         SELECT `+playerSelect+`
@@ -247,6 +275,8 @@ func GetPlayerByID(
 		&p.Role,
 		&p.CharacterType,
 		&p.Position,
+		&vote,
+		&missionAction,
 		&p.GameID,
 	)
 
@@ -256,6 +286,58 @@ func GetPlayerByID(
 		}
 		return nil, err
 	}
+	assignNullableString(&p.Vote, vote)
+	assignNullableString(&p.MissionAction, missionAction)
 
 	return &p, nil
+}
+
+func UpdatePlayerActionFields(
+	ctx context.Context,
+	tx QueryRower,
+	playerID int,
+	vote *string,
+	missionAction *string,
+) error {
+	_, err := tx.ExecContext(ctx, `
+		UPDATE players
+		SET vote = $1, mission_action = $2
+		WHERE id = $3
+	`, vote, missionAction, playerID)
+	return err
+}
+
+func ClearPlayersVoteByGameID(
+	ctx context.Context,
+	tx QueryRower,
+	gameID int,
+) error {
+	_, err := tx.ExecContext(ctx, `
+		UPDATE players
+		SET vote = NULL
+		WHERE game_id = $1
+	`, gameID)
+	return err
+}
+
+func ClearPlayersMissionActionByGameID(
+	ctx context.Context,
+	tx QueryRower,
+	gameID int,
+) error {
+	_, err := tx.ExecContext(ctx, `
+		UPDATE players
+		SET mission_action = NULL
+		WHERE game_id = $1
+	`, gameID)
+	return err
+}
+
+func assignNullableString(dst **string, src sql.NullString) {
+	if !src.Valid {
+		*dst = nil
+		return
+	}
+	value := src.String
+	*dst = &value
 }

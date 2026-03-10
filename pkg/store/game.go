@@ -5,6 +5,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+
+	"github.com/lib/pq"
 )
 
 type QueryRower interface {
@@ -24,17 +26,19 @@ func CreateGame(
             mission_priority,
             leader_position,
             speaker_position,
+            turns_order,
             skips_count,               
             wins,
             fails,
             game_state               
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         RETURNING id
     `,
 		game.MissionPriority,
 		game.LeaderPosition,
 		game.SpeakerPosition,
+		pq.Array(intsToInt64sGame(game.TurnsOrder)),
 		game.SkipsCount,
 		game.Wins,
 		game.Fails,
@@ -99,6 +103,7 @@ func GetGame(
 ) (*dto.GameV2, error) {
 
 	var game dto.GameV2
+	var turnsOrder []int64
 
 	err := db.QueryRowContext(ctx, `
         SELECT
@@ -106,6 +111,7 @@ func GetGame(
             mission_priority,
             leader_position,
             speaker_position,
+            turns_order,
             skips_count,
             wins,
             fails,
@@ -117,6 +123,7 @@ func GetGame(
 		&game.MissionPriority,
 		&game.LeaderPosition,
 		&game.SpeakerPosition,
+		pq.Array(&turnsOrder),
 		&game.SkipsCount,
 		&game.Wins,
 		&game.Fails,
@@ -129,6 +136,7 @@ func GetGame(
 		}
 		return nil, err
 	}
+	game.TurnsOrder = int64sToIntsGame(turnsOrder)
 
 	return &game, nil
 }
@@ -145,15 +153,17 @@ func UpdateGame(
 			mission_priority = $1,
 			leader_position  = $2,
 			speaker_position = $3,
-			skips_count      = $4,
-			wins             = $5,
-			fails            = $6,
-			game_state       = $7
-		WHERE id = $8
+			turns_order      = $4,
+			skips_count      = $5,
+			wins             = $6,
+			fails            = $7,
+			game_state       = $8
+		WHERE id = $9
 	`,
 		game.MissionPriority,
 		game.LeaderPosition,
 		game.SpeakerPosition,
+		pq.Array(intsToInt64sGame(game.TurnsOrder)),
 		game.SkipsCount,
 		game.Wins,
 		game.Fails,
@@ -166,4 +176,30 @@ func UpdateGame(
 	}
 
 	return nil
+}
+
+func intsToInt64sGame(values []int) []int64 {
+	if len(values) == 0 {
+		return nil
+	}
+
+	result := make([]int64, len(values))
+	for i, v := range values {
+		result[i] = int64(v)
+	}
+
+	return result
+}
+
+func int64sToIntsGame(values []int64) []int {
+	if len(values) == 0 {
+		return nil
+	}
+
+	result := make([]int, len(values))
+	for i, v := range values {
+		result[i] = int(v)
+	}
+
+	return result
 }

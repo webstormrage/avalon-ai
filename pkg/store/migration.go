@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS games (
     mission_priority INT NOT NULL,
     leader_position  INT NOT NULL,
     speaker_position INT NOT NULL,
+    turns_order      INT[] NOT NULL DEFAULT '{}',
     
     skips_count INT NOT NULL DEFAULT 0,
     wins        INT NOT NULL DEFAULT 0,
@@ -23,10 +24,16 @@ CREATE TABLE IF NOT EXISTS missions (
 
     game_id BIGINT NOT NULL REFERENCES games(id) ON DELETE CASCADE,
 
-    name       TEXT NOT NULL,
-    max_fails  INT  NOT NULL,
-    squad_size INT NOT NULL,
-    priority   INT  NOT NULL
+    name       TEXT  NOT NULL,
+    max_fails  INT   NOT NULL,
+    squad_size INT   NOT NULL,
+    priority   INT   NOT NULL,
+    squad      INT[] NOT NULL DEFAULT '{}',
+    progress   INT   NOT NULL DEFAULT 0,
+    fails      INT   NOT NULL DEFAULT 0,
+    successes  INT   NOT NULL DEFAULT 0,
+    skips      INT   NOT NULL DEFAULT 0,
+    votes      JSON  NOT NULL DEFAULT '[]'::json
 );
 
 CREATE TABLE IF NOT EXISTS players (
@@ -38,7 +45,9 @@ CREATE TABLE IF NOT EXISTS players (
     model TEXT NOT NULL,
     role TEXT NOT NULL,
     character_type TEXT NOT NULL,
-    position INT NOT NULL
+    position INT NOT NULL,
+    vote TEXT NULL,
+    mission_action TEXT NULL
 );
 
 
@@ -101,6 +110,16 @@ END $$;
 ALTER TABLE events DROP COLUMN IF EXISTS source;
 
 CREATE INDEX IF NOT EXISTS idx_events_player_id ON events(player_id);
+
+ALTER TABLE missions ADD COLUMN IF NOT EXISTS squad INT[] NOT NULL DEFAULT '{}';
+ALTER TABLE missions ADD COLUMN IF NOT EXISTS progress INT NOT NULL DEFAULT 0;
+ALTER TABLE missions ADD COLUMN IF NOT EXISTS fails INT NOT NULL DEFAULT 0;
+ALTER TABLE missions ADD COLUMN IF NOT EXISTS successes INT NOT NULL DEFAULT 0;
+ALTER TABLE missions ADD COLUMN IF NOT EXISTS skips INT NOT NULL DEFAULT 0;
+ALTER TABLE missions ADD COLUMN IF NOT EXISTS votes JSON NOT NULL DEFAULT '[]'::json;
+ALTER TABLE players ADD COLUMN IF NOT EXISTS vote TEXT NULL;
+ALTER TABLE players ADD COLUMN IF NOT EXISTS mission_action TEXT NULL;
+ALTER TABLE games ADD COLUMN IF NOT EXISTS turns_order INT[] NOT NULL DEFAULT '{}';
 `
 
 func RunInitMigration(

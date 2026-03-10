@@ -9,7 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strconv"
+	"strings"
 )
 
 type renderSystemPromptRequest struct {
@@ -160,14 +160,7 @@ func (h *GameHandler) renderActionPrompt(gameID int, requiredAction *RequiredAct
 			Mission: *mission,
 		}), nil
 	case "rate_squad":
-		team := ""
-		squadEvent, err := store.GetLastEventByGameIDAndType(h.Ctx, h.DB, gameID, constants.EVENT_SQUAD_DECLARATION)
-		if err != nil {
-			return "", err
-		}
-		if squadEvent != nil {
-			team = squadEvent.Content
-		}
+		team := joinSquadPositions(mission.Squad)
 		return prompts.RenderRateSquadPrompt(prompts.VoteProps{
 			Mission: *mission,
 			Leader:  leader.Name,
@@ -183,34 +176,15 @@ func (h *GameHandler) renderActionPrompt(gameID int, requiredAction *RequiredAct
 			Mission: *mission,
 		}), nil
 	case "vote_squad":
-		team := ""
-		squadEvent, err := store.GetLastEventByGameIDAndType(h.Ctx, h.DB, gameID, constants.EVENT_SQUAD_STATEMENT)
-		if err != nil {
-			return "", err
-		}
-		if squadEvent != nil {
-			team = squadEvent.Content
-		}
+		team := joinSquadPositions(mission.Squad)
 		return prompts.RenderVoteSquadPrompt(prompts.VoteProps{
 			Mission: *mission,
 			Leader:  leader.Name,
 			Team:    team,
 		}), nil
 	case "mission_action":
-		squadEvent, err := store.GetLastEventByGameIDAndType(h.Ctx, h.DB, gameID, constants.EVENT_SQUAD_STATEMENT)
-		if err != nil {
-			return "", err
-		}
 		leaderName := leader.Name
-		team := ""
-		if squadEvent != nil {
-			team = squadEvent.Content
-			if squadEvent.PlayerName != "" {
-				leaderName = squadEvent.PlayerName
-			} else if squadEvent.PlayerID != 0 {
-				leaderName = "player#" + strconv.Itoa(squadEvent.PlayerID)
-			}
-		}
+		team := joinSquadPositions(mission.Squad)
 		return prompts.RenderMissionActionPrompt(prompts.VoteProps{
 			Mission: *mission,
 			Leader:  leaderName,
@@ -245,4 +219,16 @@ func (h *GameHandler) renderActionPrompt(gameID int, requiredAction *RequiredAct
 	default:
 		return "", nil
 	}
+}
+
+func joinSquadPositions(squad []int) string {
+	if len(squad) == 0 {
+		return ""
+	}
+
+	parts := make([]string, len(squad))
+	for i, pos := range squad {
+		parts[i] = fmt.Sprintf("%d", pos)
+	}
+	return strings.Join(parts, ", ")
 }

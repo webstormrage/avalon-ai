@@ -4,9 +4,9 @@ import (
 	"avalon/pkg/constants"
 	"avalon/pkg/dto"
 	"avalon/pkg/store"
+	"encoding/json"
 	"fmt"
 	"strconv"
-	"strings"
 )
 
 func applyProposeSquad(h *GameHandler, tx store.QueryRower, gameID int, action GameAction) error {
@@ -14,38 +14,43 @@ func applyProposeSquad(h *GameHandler, tx store.QueryRower, gameID int, action G
 	if err != nil {
 		return err
 	}
-	leader, err := store.GetPlayerByPosition(h.Ctx, tx, game.ID, game.LeaderPosition)
+	if len(game.TurnsOrder) == 0 {
+		return fmt.Errorf("turnsOrder is empty")
+	}
+	currentTurnPosition := game.TurnsOrder[0]
+	currentTurnPlayer, err := store.GetPlayerByPosition(h.Ctx, tx, game.ID, currentTurnPosition)
 	if err != nil {
 		return err
 	}
-	squad, err := squadNumbersToStrings(action.Params.SquadNumbers)
-	if err != nil {
-		return err
+	if currentTurnPlayer == nil {
+		return fmt.Errorf("player not found at position %d", currentTurnPosition)
 	}
-	if err := store.CreateEvent(h.Ctx, tx, &dto.Event{
-		GameID:   game.ID,
-		Type:     constants.EVENT_SQUAD_DECLARATION,
-		PlayerID: leader.ID,
-		Content:  strings.Join(squad, ", "),
-	}); err != nil {
+	if action.PlayerID != currentTurnPlayer.ID {
+		return fmt.Errorf("action.playerId %d is not current turn player %d", action.PlayerID, currentTurnPlayer.ID)
+	}
+	if _, err := squadNumbersToStrings(action.Params.SquadNumbers); err != nil {
 		return err
 	}
 	if err := store.CreateEvent(h.Ctx, tx, &dto.Event{
 		GameID:   game.ID,
 		Type:     constants.EVENT_PLAYER_SPEECH,
-		PlayerID: leader.ID,
+		PlayerID: currentTurnPlayer.ID,
 		Content:  getActionMessage(action.Params),
 	}); err != nil {
 		return err
 	}
-	count, err := store.CountPlayersByGameID(h.Ctx, tx, game.ID)
+	mission, err := store.GetMissionByPriority(h.Ctx, tx, game.ID, game.MissionPriority)
 	if err != nil {
 		return err
 	}
-	game.SpeakerPosition++
-	if game.SpeakerPosition > count {
-		game.SpeakerPosition = 1
+	if mission == nil {
+		return fmt.Errorf("mission not found for priority %d", game.MissionPriority)
 	}
+	mission.Squad = action.Params.SquadNumbers
+	if err := store.UpdateMission(h.Ctx, tx, mission); err != nil {
+		return err
+	}
+	game.TurnsOrder = append([]int(nil), game.TurnsOrder[1:]...)
 	return store.UpdateGame(h.Ctx, tx, game)
 }
 
@@ -54,9 +59,19 @@ func applyRateSquad(h *GameHandler, tx store.QueryRower, gameID int, action Game
 	if err != nil {
 		return err
 	}
-	speaker, err := store.GetPlayerByPosition(h.Ctx, tx, game.ID, game.SpeakerPosition)
+	if len(game.TurnsOrder) == 0 {
+		return fmt.Errorf("turnsOrder is empty")
+	}
+	currentTurnPosition := game.TurnsOrder[0]
+	speaker, err := store.GetPlayerByPosition(h.Ctx, tx, game.ID, currentTurnPosition)
 	if err != nil {
 		return err
+	}
+	if speaker == nil {
+		return fmt.Errorf("player not found at position %d", currentTurnPosition)
+	}
+	if action.PlayerID != speaker.ID {
+		return fmt.Errorf("action.playerId %d is not current turn player %d", action.PlayerID, speaker.ID)
 	}
 	if err := store.CreateEvent(h.Ctx, tx, &dto.Event{
 		GameID:   game.ID,
@@ -66,18 +81,23 @@ func applyRateSquad(h *GameHandler, tx store.QueryRower, gameID int, action Game
 	}); err != nil {
 		return err
 	}
+	game.TurnsOrder = append([]int(nil), game.TurnsOrder[1:]...)
+	if len(game.TurnsOrder) > 0 {
+		return store.UpdateGame(h.Ctx, tx, game)
+	}
+
 	count, err := store.CountPlayersByGameID(h.Ctx, tx, game.ID)
 	if err != nil {
 		return err
 	}
-	game.SpeakerPosition++
-	if game.SpeakerPosition > count {
-		game.SpeakerPosition = 1
+	nextLeaderPos := currentTurnPosition + 1
+	if nextLeaderPos > count {
+		nextLeaderPos = 1
 	}
-	if game.SpeakerPosition == game.LeaderPosition {
-		game.GameState = constants.STATE_VOTING
-	}
-	return store.UpdateGame(h.Ctx, tx, game)
+	game.LeaderPosition = nextLeaderPos
+	game.SpeakerPosition = nextLeaderPos
+	game.GameState = constants.STATE_VOTING
+	return persistGameWithTurnsOrder(h, tx, game)
 }
 
 func applyAnnounceSquad(h *GameHandler, tx store.QueryRower, gameID int, action GameAction) error {
@@ -89,26 +109,22 @@ func applyAnnounceSquad(h *GameHandler, tx store.QueryRower, gameID int, action 
 	if err != nil {
 		return err
 	}
-	squad, err := squadNumbersToStrings(action.Params.SquadNumbers)
+	if _, err := squadNumbersToStrings(action.Params.SquadNumbers); err != nil {
+		return err
+	}
+	mission, err := store.GetMissionByPriority(h.Ctx, tx, game.ID, game.MissionPriority)
 	if err != nil {
 		return err
 	}
-	if err := store.CreateEvent(h.Ctx, tx, &dto.Event{
-		GameID:   game.ID,
-		Type:     constants.EVENT_SQUAD_STATEMENT,
-		PlayerID: leader.ID,
-		Content:  strings.Join(squad, ", "),
-	}); err != nil {
-		return err
+	if mission == nil {
+		return fmt.Errorf("mission not found for priority %d", game.MissionPriority)
 	}
-	roster := squad
-	if err := store.CreateEvent(h.Ctx, tx, &dto.Event{
-		GameID:   game.ID,
-		Type:     constants.EVENT_SQUAD_ROSTER,
-		PlayerID: leader.ID,
-		Content:  strings.Join(roster, ", "),
-		Hidden:   true,
-	}); err != nil {
+	mission.Squad = action.Params.SquadNumbers
+	mission.Progress = 0
+	mission.Fails = 0
+	mission.Successes = 0
+	mission.Votes = []byte("[]")
+	if err := store.UpdateMission(h.Ctx, tx, mission); err != nil {
 		return err
 	}
 	if err := store.CreateEvent(h.Ctx, tx, &dto.Event{
@@ -127,7 +143,7 @@ func applyAnnounceSquad(h *GameHandler, tx store.QueryRower, gameID int, action 
 	if game.SpeakerPosition > count {
 		game.SpeakerPosition = 1
 	}
-	return store.UpdateGame(h.Ctx, tx, game)
+	return persistGameWithTurnsOrder(h, tx, game)
 }
 
 func applyVoteSquad(h *GameHandler, tx store.QueryRower, gameID int, action GameAction) error {
@@ -152,6 +168,13 @@ func applyVoteSquad(h *GameHandler, tx store.QueryRower, gameID int, action Game
 	if err != nil {
 		return err
 	}
+	playerVote := "AGAINST"
+	if action.Params.Approve != nil && *action.Params.Approve {
+		playerVote = "FOR"
+	}
+	if err := store.UpdatePlayerActionFields(h.Ctx, tx, speaker.ID, &playerVote, nil); err != nil {
+		return err
+	}
 	if err := store.CreateEvent(h.Ctx, tx, &dto.Event{
 		GameID:   game.ID,
 		Type:     constants.EVENT_SQUAD_VOTE,
@@ -174,6 +197,10 @@ func applyVoteSquad(h *GameHandler, tx store.QueryRower, gameID int, action Game
 		if err != nil {
 			return err
 		}
+		mission, err := store.GetMissionByPriority(h.Ctx, tx, game.ID, game.MissionPriority)
+		if err != nil {
+			return err
+		}
 		votesFor := 0
 		votesAgainst := 0
 		for _, vote := range votes {
@@ -187,9 +214,18 @@ func applyVoteSquad(h *GameHandler, tx store.QueryRower, gameID int, action Game
 		if votesAgainst > votesFor {
 			votesResult += "Состав не одобрен."
 			game.SkipsCount++
+			if mission != nil {
+				mission.Skips++
+				if err := store.UpdateMission(h.Ctx, tx, mission); err != nil {
+					return err
+				}
+			}
 		} else {
 			votesResult += "Состав одобрен."
 			game.SkipsCount = 0
+			if mission != nil && len(mission.Squad) > 0 {
+				game.SpeakerPosition = mission.Squad[0]
+			}
 		}
 		if err := store.CreateEvent(h.Ctx, tx, &dto.Event{
 			GameID:   game.ID,
@@ -211,8 +247,11 @@ func applyVoteSquad(h *GameHandler, tx store.QueryRower, gameID int, action Game
 		} else {
 			game.GameState = constants.STATE_MISSION
 		}
+		if err := store.ClearPlayersVoteByGameID(h.Ctx, tx, game.ID); err != nil {
+			return err
+		}
 	}
-	return store.UpdateGame(h.Ctx, tx, game)
+	return persistGameWithTurnsOrder(h, tx, game)
 }
 
 func applyMissionAction(h *GameHandler, tx store.QueryRower, gameID int, action GameAction) error {
@@ -226,6 +265,13 @@ func applyMissionAction(h *GameHandler, tx store.QueryRower, gameID int, action 
 	}
 	success, err := actionSuccessToMissionResult(action.Params)
 	if err != nil {
+		return err
+	}
+	playerMissionAction := "APPROVE"
+	if action.Params.Success != nil && *action.Params.Success {
+		playerMissionAction = "SUCCESS"
+	}
+	if err := store.UpdatePlayerActionFields(h.Ctx, tx, speaker.ID, nil, &playerMissionAction); err != nil {
 		return err
 	}
 	if err := store.CreateEvent(h.Ctx, tx, &dto.Event{
@@ -246,43 +292,67 @@ func applyMissionAction(h *GameHandler, tx store.QueryRower, gameID int, action 
 	}); err != nil {
 		return err
 	}
+
 	mission, err := store.GetMissionByPriority(h.Ctx, tx, game.ID, game.MissionPriority)
 	if err != nil {
 		return err
 	}
-	rosterEvent, err := store.GetLastEventByGameIDAndType(h.Ctx, tx, gameID, constants.EVENT_SQUAD_ROSTER)
-	if err != nil {
-		return err
+	if mission == nil {
+		return fmt.Errorf("mission not found for priority %d", game.MissionPriority)
 	}
-	squadNumbers := strings.Split(rosterEvent.Content, ", ")
-	if len(squadNumbers) > 1 {
-		return store.CreateEvent(h.Ctx, tx, &dto.Event{
-			GameID:   game.ID,
-			Type:     constants.EVENT_SQUAD_ROSTER,
-			PlayerID: rosterEvent.PlayerID,
-			Content:  strings.Join(squadNumbers[1:], ", "),
-			Hidden:   true,
-		})
+	if mission.Progress >= len(mission.Squad) {
+		return fmt.Errorf("mission squad exhausted")
+	}
+	if speaker.Position != mission.Squad[mission.Progress] {
+		return fmt.Errorf("current speaker is not in mission squad order")
 	}
 
-	votes, err := store.GetEventsByGameIDAndType(h.Ctx, tx, gameID, constants.EVENT_PLAYER_MISSION_RESULT, mission.SquadSize)
+	type missionVote struct {
+		PlayerID int  `json:"playerId"`
+		Success  bool `json:"success"`
+	}
+	votesHistory := make([]missionVote, 0)
+	if len(mission.Votes) > 0 {
+		_ = json.Unmarshal(mission.Votes, &votesHistory)
+	}
+	if action.Params.Success == nil {
+		return fmt.Errorf("params.success must be boolean")
+	}
+	if *action.Params.Success {
+		mission.Successes++
+	} else {
+		mission.Fails++
+	}
+	votesHistory = append(votesHistory, missionVote{
+		PlayerID: speaker.ID,
+		Success:  *action.Params.Success,
+	})
+	votesRaw, err := json.Marshal(votesHistory)
 	if err != nil {
 		return err
 	}
-	votesFor := 0
-	votesAgainst := 0
-	for _, vote := range votes {
-		if vote.Content == "УСПЕХ" {
-			votesFor++
-		} else {
-			votesAgainst++
+	mission.Votes = votesRaw
+	mission.Progress++
+
+	if mission.Progress < len(mission.Squad) {
+		game.SpeakerPosition = mission.Squad[mission.Progress]
+		if err := store.UpdateMission(h.Ctx, tx, mission); err != nil {
+			return err
 		}
+		return persistGameWithTurnsOrder(h, tx, game)
 	}
-	votesResult := fmt.Sprintf("Итоги миссии.\nУспех - %d\nПровал - %d\n", votesFor, votesAgainst)
-	if votesAgainst > mission.MaxFails {
+
+	votesResult := fmt.Sprintf("Итоги миссии.\nУспех - %d\nПровал - %d\n", mission.Successes, mission.Fails)
+	if mission.Fails > mission.MaxFails {
 		game.Fails++
 	} else {
 		game.Wins++
+	}
+	if err := store.UpdateMission(h.Ctx, tx, mission); err != nil {
+		return err
+	}
+	if err := store.ClearPlayersMissionActionByGameID(h.Ctx, tx, game.ID); err != nil {
+		return err
 	}
 	if err := store.CreateEvent(h.Ctx, tx, &dto.Event{
 		GameID:   game.ID,
@@ -309,9 +379,8 @@ func applyMissionAction(h *GameHandler, tx store.QueryRower, gameID int, action 
 		}
 		game.SpeakerPosition = game.LeaderPosition
 	}
-	return store.UpdateGame(h.Ctx, tx, game)
+	return persistGameWithTurnsOrder(h, tx, game)
 }
-
 func applyAnnounceAssassination(h *GameHandler, tx store.QueryRower, gameID int, action GameAction) error {
 	game, err := store.GetGame(h.Ctx, tx, gameID)
 	if err != nil {
@@ -353,7 +422,7 @@ func applyAnnounceAssassination(h *GameHandler, tx store.QueryRower, gameID int,
 	} else {
 		game.GameState = constants.STATE_BLUE_VICTORY
 	}
-	return store.UpdateGame(h.Ctx, tx, game)
+	return persistGameWithTurnsOrder(h, tx, game)
 }
 
 func getActionMessage(params GameActionParams) string {

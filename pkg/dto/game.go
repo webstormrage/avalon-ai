@@ -5,6 +5,7 @@ type GameV2 struct {
 	MissionPriority int    `json:"missionPriority"`
 	LeaderPosition  int    `json:"leaderPosition"`
 	SpeakerPosition int    `json:"speakerPosition"`
+	TurnsOrder      []int  `json:"turnsOrder"`
 	SkipsCount      int    `json:"skipsCount"`
 	Wins            int    `json:"wins"`
 	Fails           int    `json:"fails"`

@@ -76,14 +76,33 @@ func (h *GameHandler) ApplyGameAction(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	speaker, err := store.GetPlayerByPosition(h.Ctx, tx, game.ID, game.SpeakerPosition)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	if speaker == nil || speaker.ID != action.PlayerID {
-		http.Error(w, "player is not current speaker", http.StatusForbidden)
-		return
+	var speaker *dto.PlayerV2
+	switch action.Name {
+	case "propose_squad", "rate_squad":
+		if len(game.TurnsOrder) == 0 {
+			http.Error(w, "turnsOrder is empty", http.StatusForbidden)
+			return
+		}
+		currentTurnPos := game.TurnsOrder[0]
+		speaker, err = store.GetPlayerByPosition(h.Ctx, tx, game.ID, currentTurnPos)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if speaker == nil || speaker.ID != action.PlayerID {
+			http.Error(w, "player is not current speaker", http.StatusForbidden)
+			return
+		}
+	default:
+		speaker, err = store.GetPlayerByPosition(h.Ctx, tx, game.ID, game.SpeakerPosition)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		if speaker == nil || speaker.ID != action.PlayerID {
+			http.Error(w, "player is not current speaker", http.StatusForbidden)
+			return
+		}
 	}
 
 	switch action.Name {
@@ -153,7 +172,7 @@ func applyProposeAssassinationAction(h *GameHandler, tx store.QueryRower, game *
 		return err
 	}
 	game.SpeakerPosition = nextPos
-	return store.UpdateGame(h.Ctx, tx, game)
+	return persistGameWithTurnsOrder(h, tx, game)
 }
 
 func applyRateAssassinationAction(h *GameHandler, tx store.QueryRower, game *dto.GameV2, speaker *dto.PlayerV2, params GameActionParams) error {
@@ -182,7 +201,7 @@ func applyRateAssassinationAction(h *GameHandler, tx store.QueryRower, game *dto
 	if nextSpeaker.Role == constants.ROLE_ASSASSIN {
 		game.GameState = constants.STATE_ASSASSINATION
 	}
-	return store.UpdateGame(h.Ctx, tx, game)
+	return persistGameWithTurnsOrder(h, tx, game)
 }
 
 func nextRedSpeakerPosition(h *GameHandler, tx store.QueryRower, gameID int, currentPos int) (int, error) {
