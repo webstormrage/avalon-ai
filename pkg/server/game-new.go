@@ -61,7 +61,7 @@ func (h *GameHandler) CreateGame(w http.ResponseWriter, r *http.Request) {
 		SkipsCount:      0,
 		Wins:            0,
 		Fails:           0,
-		GameState:       constants.STATE_DISCUSSION,
+		Phase:           constants.STATE_DISCUSSION,
 	}
 
 	gameID, err := store.CreateGameTransaction(ctx, h.DB, game, missions, players)

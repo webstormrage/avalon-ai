@@ -169,15 +169,15 @@ func applyMissionPrompt(h *Handler, tx store.QueryRower, gameID int) error {
 		}
 
 		if game.Wins >= 3 {
-			game.GameState = constants.STATE_ASSASSIONATION_DISCUSSION
+			game.Phase = constants.STATE_ASSASSIONATION_DISCUSSION
 		} else if game.Fails >= 3 {
-			game.GameState = constants.STATE_RED_VICTORY
+			game.Phase = constants.STATE_RED_VICTORY
 		} else {
 			count, err := store.CountPlayersByGameID(h.Ctx, tx, game.ID)
 			if err != nil {
 				return err
 			}
-			game.GameState = constants.STATE_DISCUSSION
+			game.Phase = constants.STATE_DISCUSSION
 			game.LeaderPosition += 1
 			if game.LeaderPosition > count {
 				game.LeaderPosition = 1

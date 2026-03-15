@@ -13,8 +13,8 @@ func FilterStateByRequester(state *GameState, requester dto.PlayerV2) {
 	if requester.Role == constants.ROLE_GAME_MASTER {
 		for i := range state.Players {
 			if state.Players[i].ID != requester.ID {
-				state.Players[i].Vote = nil
-				state.Players[i].MissionAction = nil
+				state.Players[i].Vote = ""
+				state.Players[i].MissionAction = ""
 			}
 		}
 		return
@@ -47,8 +47,8 @@ func FilterStateByRequester(state *GameState, requester dto.PlayerV2) {
 			continue
 		}
 		if state.Players[i].ID != requester.ID {
-			state.Players[i].Vote = nil
-			state.Players[i].MissionAction = nil
+			state.Players[i].Vote = ""
+			state.Players[i].MissionAction = ""
 		}
 		if _, ok := visibleRoles[state.Players[i].ID]; !ok {
 			state.Players[i].Role = ""

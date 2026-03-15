@@ -301,7 +301,7 @@ func UpdatePlayerActionFields(
 ) error {
 	_, err := tx.ExecContext(ctx, `
 		UPDATE players
-		SET vote = $1, mission_action = $2
+		SET vote = COALESCE($1, ''), mission_action = COALESCE($2, '')
 		WHERE id = $3
 	`, vote, missionAction, playerID)
 	return err
@@ -314,7 +314,7 @@ func ClearPlayersVoteByGameID(
 ) error {
 	_, err := tx.ExecContext(ctx, `
 		UPDATE players
-		SET vote = NULL
+		SET vote = ''
 		WHERE game_id = $1
 	`, gameID)
 	return err
@@ -327,17 +327,16 @@ func ClearPlayersMissionActionByGameID(
 ) error {
 	_, err := tx.ExecContext(ctx, `
 		UPDATE players
-		SET mission_action = NULL
+		SET mission_action = ''
 		WHERE game_id = $1
 	`, gameID)
 	return err
 }
 
-func assignNullableString(dst **string, src sql.NullString) {
+func assignNullableString(dst *string, src sql.NullString) {
 	if !src.Valid {
-		*dst = nil
+		*dst = ""
 		return
 	}
-	value := src.String
-	*dst = &value
+	*dst = src.String
 }

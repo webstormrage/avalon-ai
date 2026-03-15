@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS games (
     mission_priority INT NOT NULL,
     leader_position  INT NOT NULL,
     speaker_position INT NOT NULL,
+    phase            TEXT NOT NULL DEFAULT '',
     turns_order      INT[] NOT NULL DEFAULT '{}',
     
     skips_count INT NOT NULL DEFAULT 0,
@@ -24,16 +25,19 @@ CREATE TABLE IF NOT EXISTS missions (
 
     game_id BIGINT NOT NULL REFERENCES games(id) ON DELETE CASCADE,
 
-    name       TEXT  NOT NULL,
-    max_fails  INT   NOT NULL,
-    squad_size INT   NOT NULL,
-    priority   INT   NOT NULL,
-    squad      INT[] NOT NULL DEFAULT '{}',
-    progress   INT   NOT NULL DEFAULT 0,
-    fails      INT   NOT NULL DEFAULT 0,
-    successes  INT   NOT NULL DEFAULT 0,
-    skips      INT   NOT NULL DEFAULT 0,
-    votes      JSON  NOT NULL DEFAULT '[]'::json
+    name          TEXT  NOT NULL,
+    status        TEXT  NOT NULL DEFAULT '',
+    max_fails     INT   NOT NULL,
+    allowed_fails INT   NOT NULL DEFAULT 0,
+    squad_size    INT   NOT NULL,
+    priority      INT   NOT NULL,
+    squad         INT[] NOT NULL DEFAULT '{}',
+    progress      INT   NOT NULL DEFAULT 0,
+    fails         INT   NOT NULL DEFAULT 0,
+    successes     INT   NOT NULL DEFAULT 0,
+    skips         INT   NOT NULL DEFAULT 0,
+    leader        INT   NOT NULL DEFAULT 0,
+    votes         JSON  NOT NULL DEFAULT '[]'::json
 );
 
 CREATE TABLE IF NOT EXISTS players (
@@ -46,8 +50,8 @@ CREATE TABLE IF NOT EXISTS players (
     role TEXT NOT NULL,
     character_type TEXT NOT NULL,
     position INT NOT NULL,
-    vote TEXT NULL,
-    mission_action TEXT NULL
+    vote TEXT NOT NULL DEFAULT '',
+    mission_action TEXT NOT NULL DEFAULT ''
 );
 
 
@@ -116,10 +120,41 @@ ALTER TABLE missions ADD COLUMN IF NOT EXISTS progress INT NOT NULL DEFAULT 0;
 ALTER TABLE missions ADD COLUMN IF NOT EXISTS fails INT NOT NULL DEFAULT 0;
 ALTER TABLE missions ADD COLUMN IF NOT EXISTS successes INT NOT NULL DEFAULT 0;
 ALTER TABLE missions ADD COLUMN IF NOT EXISTS skips INT NOT NULL DEFAULT 0;
+ALTER TABLE missions ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT '';
+ALTER TABLE missions ADD COLUMN IF NOT EXISTS leader INT NOT NULL DEFAULT 0;
+ALTER TABLE missions ADD COLUMN IF NOT EXISTS allowed_fails INT NOT NULL DEFAULT 0;
 ALTER TABLE missions ADD COLUMN IF NOT EXISTS votes JSON NOT NULL DEFAULT '[]'::json;
-ALTER TABLE players ADD COLUMN IF NOT EXISTS vote TEXT NULL;
-ALTER TABLE players ADD COLUMN IF NOT EXISTS mission_action TEXT NULL;
+ALTER TABLE players ADD COLUMN IF NOT EXISTS vote TEXT NOT NULL DEFAULT '';
+ALTER TABLE players ADD COLUMN IF NOT EXISTS mission_action TEXT NOT NULL DEFAULT '';
 ALTER TABLE games ADD COLUMN IF NOT EXISTS turns_order INT[] NOT NULL DEFAULT '{}';
+
+ALTER TABLE games ADD COLUMN IF NOT EXISTS phase TEXT;
+ALTER TABLE games ALTER COLUMN phase SET DEFAULT '';
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_name = 'games'
+          AND column_name = 'game_state'
+    ) THEN
+        EXECUTE 'UPDATE games SET phase = COALESCE(phase, game_state, '''')';
+    ELSE
+        EXECUTE 'UPDATE games SET phase = COALESCE(phase, '''')';
+    END IF;
+END $$;
+ALTER TABLE games ALTER COLUMN phase SET NOT NULL;
+ALTER TABLE games DROP COLUMN IF EXISTS game_state;
+
+UPDATE missions SET allowed_fails = max_fails WHERE allowed_fails = 0;
+ALTER TABLE missions ALTER COLUMN allowed_fails SET NOT NULL;
+
+UPDATE players SET vote = '' WHERE vote IS NULL;
+UPDATE players SET mission_action = '' WHERE mission_action IS NULL;
+ALTER TABLE players ALTER COLUMN vote SET DEFAULT '';
+ALTER TABLE players ALTER COLUMN mission_action SET DEFAULT '';
+ALTER TABLE players ALTER COLUMN vote SET NOT NULL;
+ALTER TABLE players ALTER COLUMN mission_action SET NOT NULL;
 `
 
 func RunInitMigration(

@@ -104,7 +104,7 @@ func applySpeakerDiscussionPrompt(h *Handler, tx store.QueryRower, gameID int) e
 	}
 	if game.SpeakerPosition == game.LeaderPosition {
 		// РљСЂСѓРі Р·Р°РјРєРЅСѓР»СЃСЏ
-		game.GameState = constants.STATE_VOTING
+		game.Phase = constants.STATE_VOTING
 	}
 
 	return store.UpdateGame(h.Ctx, tx, game)

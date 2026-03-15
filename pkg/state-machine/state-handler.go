@@ -44,7 +44,7 @@ func getRequiredAction(game dto.GameV2, players []dto.PlayerV2) *server.Required
 		return nil
 	}
 
-	switch game.GameState {
+	switch game.Phase {
 	case constants.STATE_DISCUSSION:
 		if isSpeakerLeader {
 			return &server.RequiredAction{
@@ -152,11 +152,11 @@ func handleNextState(h *Handler, gameID int) (*server.GameState, error) {
 	if err != nil {
 		return nil, err
 	}
-	prevState := game.GameState
+	prevState := game.Phase
 	prevWins := game.Wins
 	prevFails := game.Fails
 	prevSkips := game.SkipsCount
-	switch game.GameState {
+	switch game.Phase {
 	case constants.STATE_DISCUSSION:
 		if isLeader {
 			err = handleLeaderDiscussion(h, tx, gameID)
@@ -180,16 +180,16 @@ func handleNextState(h *Handler, gameID int) (*server.GameState, error) {
 		return nil, err
 	}
 	state, err := getState(h, tx, gameID)
-	if state.Game.GameState == constants.STATE_VOTING && prevState != constants.STATE_VOTING {
+	if state.Game.Phase == constants.STATE_VOTING && prevState != constants.STATE_VOTING {
 		state.CurrentEvent = "VOTING_STARTED"
-	} else if state.Game.GameState == constants.STATE_MISSION && prevState != constants.STATE_MISSION {
+	} else if state.Game.Phase == constants.STATE_MISSION && prevState != constants.STATE_MISSION {
 		state.CurrentEvent = "MISSION_STARTED"
-	} else if (state.Game.GameState == constants.STATE_ASSASSIONATION || state.Game.GameState == constants.STATE_ASSASSINATION) &&
+	} else if (state.Game.Phase == constants.STATE_ASSASSIONATION || state.Game.Phase == constants.STATE_ASSASSINATION) &&
 		(prevState != constants.STATE_ASSASSIONATION && prevState != constants.STATE_ASSASSINATION) {
 		state.CurrentEvent = "ASSASSION_STARTED"
-	} else if state.Game.GameState == constants.STATE_BLUE_VICTORY && prevState != constants.STATE_BLUE_VICTORY {
+	} else if state.Game.Phase == constants.STATE_BLUE_VICTORY && prevState != constants.STATE_BLUE_VICTORY {
 		state.CurrentEvent = "BLUE_WON"
-	} else if state.Game.GameState == constants.STATE_RED_VICTORY && prevState != constants.STATE_RED_VICTORY {
+	} else if state.Game.Phase == constants.STATE_RED_VICTORY && prevState != constants.STATE_RED_VICTORY {
 		state.CurrentEvent = "BLUE_LOST"
 	} else if prevState == constants.STATE_MISSION && state.Game.Wins > prevWins {
 		state.CurrentEvent = "MISSION_COMPLETED"

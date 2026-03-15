@@ -28,7 +28,7 @@ func setTurnsOrderForCurrentPhase(
 		return err
 	}
 
-	switch game.GameState {
+	switch game.Phase {
 	case constants.STATE_DISCUSSION, constants.STATE_VOTING:
 		order, err := orderedAllFromLeader(players, game.LeaderPosition)
 		if err != nil {
@@ -91,6 +91,30 @@ func orderedAllFromLeader(players []dto.PlayerV2, leaderPos int) ([]int, error) 
 			order = append(order, p.Position)
 		}
 		i = (i + 1) % len(players)
+	}
+
+	return order, nil
+}
+
+func orderedRingFromPosition(startPos int, count int) ([]int, error) {
+	if count < 0 {
+		return nil, fmt.Errorf("players count must be non-negative")
+	}
+	if count == 0 {
+		return []int{}, nil
+	}
+	if startPos <= 0 || startPos > count {
+		return nil, fmt.Errorf("start position %d is out of range 1..%d", startPos, count)
+	}
+
+	order := make([]int, 0, count)
+	pos := startPos
+	for range count {
+		order = append(order, pos)
+		pos++
+		if pos > count {
+			pos = 1
+		}
 	}
 
 	return order, nil

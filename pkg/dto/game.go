@@ -9,5 +9,5 @@ type GameV2 struct {
 	SkipsCount      int    `json:"skipsCount"`
 	Wins            int    `json:"wins"`
 	Fails           int    `json:"fails"`
-	GameState       string `json:"gameState"`
+	Phase           string `json:"phase"`
 }

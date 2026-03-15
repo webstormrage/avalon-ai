@@ -38,7 +38,7 @@ func getRequiredAction(game dto.GameV2, players []dto.PlayerV2) *RequiredAction 
 		return nil
 	}
 
-	switch game.GameState {
+	switch game.Phase {
 	case constants.STATE_DISCUSSION:
 		if isSpeakerLeader {
 			return &RequiredAction{

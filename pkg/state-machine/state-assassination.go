@@ -92,9 +92,9 @@ func applyAssassinationPrompt(h *Handler, tx store.QueryRower, gameID int) error
 		Content:  prompt.Response,
 	})
 	if len(targets) > 0 && targets[0].Role == constants.ROLE_MERLIN {
-		game.GameState = constants.STATE_RED_VICTORY
+		game.Phase = constants.STATE_RED_VICTORY
 	} else {
-		game.GameState = constants.STATE_BLUE_VICTORY
+		game.Phase = constants.STATE_BLUE_VICTORY
 	}
 
 	return store.UpdateGame(h.Ctx, tx, game)

@@ -155,16 +155,16 @@ func applySpeakerVotingPrompt(h *Handler, tx store.QueryRower, gameID int) error
 		}
 
 		if game.SkipsCount >= 5 {
-			game.GameState = constants.STATE_RED_VICTORY
+			game.Phase = constants.STATE_RED_VICTORY
 		} else if votesAgainst > votesFor {
-			game.GameState = constants.STATE_DISCUSSION
+			game.Phase = constants.STATE_DISCUSSION
 			game.LeaderPosition += 1
 			if game.LeaderPosition > count {
 				game.LeaderPosition = 1
 			}
 			game.SpeakerPosition = game.LeaderPosition
 		} else {
-			game.GameState = constants.STATE_MISSION
+			game.Phase = constants.STATE_MISSION
 		}
 	}
 

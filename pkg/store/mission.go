@@ -16,12 +16,14 @@ func CreateMission(
 ) error {
 
 	err := tx.QueryRowContext(ctx, `
-        INSERT INTO missions (name, max_fails, priority, squad_size, squad, progress, fails, successes, skips, votes, game_id)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        INSERT INTO missions (name, status, max_fails, allowed_fails, priority, squad_size, squad, progress, fails, successes, skips, leader, votes, game_id)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
         RETURNING id
     `,
 		mission.Name,
+		mission.Status,
 		mission.MaxFails,
+		effectiveAllowedFails(mission),
 		mission.Priority,
 		mission.SquadSize,
 		pq.Array(intsToInt64s(mission.Squad)),
@@ -29,6 +31,7 @@ func CreateMission(
 		mission.Fails,
 		mission.Successes,
 		mission.Skips,
+		mission.Leader,
 		jsonOrEmptyArray(mission.Votes),
 		mission.GameID,
 	).Scan(&mission.ID)
@@ -54,7 +57,9 @@ func GetMissionByPriority(
         SELECT
             id,
             name,
+            status,
             max_fails,
+            allowed_fails,
             priority,
             squad_size,
             squad,
@@ -62,6 +67,7 @@ func GetMissionByPriority(
             fails,
             successes,
             skips,
+            leader,
             votes,
             game_id
         FROM missions
@@ -70,7 +76,9 @@ func GetMissionByPriority(
     `, gameID, priority).Scan(
 		&m.ID,
 		&m.Name,
+		&m.Status,
 		&m.MaxFails,
+		&m.AllowedFails,
 		&m.Priority,
 		&m.SquadSize,
 		pq.Array(&squad),
@@ -78,6 +86,7 @@ func GetMissionByPriority(
 		&m.Fails,
 		&m.Successes,
 		&m.Skips,
+		&m.Leader,
 		&m.Votes,
 		&m.GameID,
 	)
@@ -87,6 +96,12 @@ func GetMissionByPriority(
 			return nil, nil // или domain error
 		}
 		return nil, err
+	}
+	if m.MaxFails == 0 && m.AllowedFails > 0 {
+		m.MaxFails = m.AllowedFails
+	}
+	if m.AllowedFails == 0 && m.MaxFails > 0 {
+		m.AllowedFails = m.MaxFails
 	}
 	m.Squad = int64sToInts(squad)
 
@@ -103,7 +118,9 @@ func GetMissionsByGameID(
         SELECT
             id,
             name,
+            status,
             max_fails,
+            allowed_fails,
             priority,
             squad_size,
             squad,
@@ -111,6 +128,7 @@ func GetMissionsByGameID(
             fails,
             successes,
             skips,
+            leader,
             votes,
             game_id
         FROM missions
@@ -130,7 +148,9 @@ func GetMissionsByGameID(
 		if err := rows.Scan(
 			&m.ID,
 			&m.Name,
+			&m.Status,
 			&m.MaxFails,
+			&m.AllowedFails,
 			&m.Priority,
 			&m.SquadSize,
 			pq.Array(&squad),
@@ -138,10 +158,17 @@ func GetMissionsByGameID(
 			&m.Fails,
 			&m.Successes,
 			&m.Skips,
+			&m.Leader,
 			&m.Votes,
 			&m.GameID,
 		); err != nil {
 			return nil, err
+		}
+		if m.MaxFails == 0 && m.AllowedFails > 0 {
+			m.MaxFails = m.AllowedFails
+		}
+		if m.AllowedFails == 0 && m.MaxFails > 0 {
+			m.AllowedFails = m.MaxFails
 		}
 		m.Squad = int64sToInts(squad)
 		missions = append(missions, m)
@@ -163,19 +190,24 @@ func UpdateMission(
 		UPDATE missions
 		SET
 			name = $1,
-			max_fails = $2,
-			priority = $3,
-			squad_size = $4,
-			squad = $5,
-			progress = $6,
-			fails = $7,
-			successes = $8,
-			skips = $9,
-			votes = $10
-		WHERE id = $11
+			status = $2,
+			max_fails = $3,
+			allowed_fails = $4,
+			priority = $5,
+			squad_size = $6,
+			squad = $7,
+			progress = $8,
+			fails = $9,
+			successes = $10,
+			skips = $11,
+			leader = $12,
+			votes = $13
+		WHERE id = $14
 	`,
 		mission.Name,
+		mission.Status,
 		mission.MaxFails,
+		effectiveAllowedFails(mission),
 		mission.Priority,
 		mission.SquadSize,
 		pq.Array(intsToInt64s(mission.Squad)),
@@ -183,6 +215,7 @@ func UpdateMission(
 		mission.Fails,
 		mission.Successes,
 		mission.Skips,
+		mission.Leader,
 		jsonOrEmptyArray(mission.Votes),
 		mission.ID,
 	)
@@ -224,4 +257,11 @@ func jsonOrEmptyArray(raw []byte) []byte {
 		return []byte("[]")
 	}
 	return raw
+}
+
+func effectiveAllowedFails(mission *dto.MissionV2) int {
+	if mission.AllowedFails > 0 {
+		return mission.AllowedFails
+	}
+	return mission.MaxFails
 }

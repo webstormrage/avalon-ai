@@ -30,7 +30,7 @@ func CreateGame(
             skips_count,               
             wins,
             fails,
-            game_state               
+            phase
         )
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
         RETURNING id
@@ -42,7 +42,7 @@ func CreateGame(
 		game.SkipsCount,
 		game.Wins,
 		game.Fails,
-		game.GameState,
+		game.Phase,
 	).Scan(&game.ID)
 
 	if err != nil {
@@ -115,7 +115,7 @@ func GetGame(
             skips_count,
             wins,
             fails,
-            game_state
+            phase
         FROM games
         WHERE id = $1
     `, gameID).Scan(
@@ -127,7 +127,7 @@ func GetGame(
 		&game.SkipsCount,
 		&game.Wins,
 		&game.Fails,
-		&game.GameState,
+		&game.Phase,
 	)
 
 	if err != nil {
@@ -157,7 +157,7 @@ func UpdateGame(
 			skips_count      = $5,
 			wins             = $6,
 			fails            = $7,
-			game_state       = $8
+			phase            = $8
 		WHERE id = $9
 	`,
 		game.MissionPriority,
@@ -167,7 +167,7 @@ func UpdateGame(
 		game.SkipsCount,
 		game.Wins,
 		game.Fails,
-		game.GameState,
+		game.Phase,
 		game.ID,
 	)
 
